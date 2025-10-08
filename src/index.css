@@ -1,0 +1,152 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* Import pixel font (Press Start 2P) - fallback to monospace */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+html, body, #root {
+  font-family: 'Press Start 2P', monospace;
+  height: 100dvh;
+}
+
+@keyframes bounce-in {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.5s ease-out;
+}
+
+@keyframes slide-down {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-down {
+  animation: slide-down 1s ease-out forwards;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.8), 0 0 60px rgba(59, 130, 246, 0.5);
+    transform: scale(1.05);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+@keyframes countdown-pop {
+  0% { transform: scale(0.3) translateY(-20px); opacity: 0 }
+  40% { transform: scale(1.15) translateY(0); opacity: 1 }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1 }
+}
+
+.animate-count-pop {
+  animation: countdown-pop 700ms cubic-bezier(.2,.9,.3,1) forwards;
+}
+
+@keyframes fade-out-up {
+  0% { opacity: 1; transform: translateY(0) scale(1) }
+  100% { opacity: 0; transform: translateY(-20px) scale(0.9) }
+}
+
+.animate-fade-out-up {
+  animation: fade-out-up 600ms ease-in forwards;
+}
+
+@keyframes go-pop {
+  0% { transform: scale(0.6); opacity: 0 }
+  40% { transform: scale(1.05); opacity: 1 }
+  100% { transform: scale(1); opacity: 1 }
+}
+
+.animate-go-pop {
+  animation: go-pop 500ms cubic-bezier(.2,.9,.3,1) forwards;
+}
+
+.countdown-overlay {
+  pointer-events: none;
+}
+
+/* indicator animation removed; indicator is driven by rAF loop in TimingMeter.tsx */
