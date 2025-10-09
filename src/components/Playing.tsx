@@ -57,8 +57,6 @@ export const Playing = ({
           let msg = reason === 'too-early' ? 'Keep Going!' : reason === 'too-late' ? 'Oops! Jump again' : 'Miss';
           if (reason === 'perfect-miss') {
             msg = 'Miss';
-          } else if (reason === 'fence-passed') {
-            msg = 'Missed Fence!';
           }
           setFeedback(msg);
           // Reset consecutive perfect streak on failed attempt
@@ -72,6 +70,7 @@ export const Playing = ({
         onJumpAttemptReady={(fn) => {
           jumpAttemptFnRef.current = fn;
         }}
+        resetConsecutivePerfect={resetConsecutivePerfect}
         setGameState={setGameState}
       />
 

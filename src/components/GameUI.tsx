@@ -22,10 +22,11 @@ interface GameUIProps {
   isGameActive?: boolean;
   onJumpOutcome?: (outcome: JumpOutcome) => void;
   onJumpCleared?: () => void;
-  onJumpFailed?: (reason?: "perfect-miss" | "too-early" | "too-late" | "fence-passed") => void;
+  onJumpFailed?: (reason?: "perfect-miss" | "too-early" | "too-late") => void;
   onLevelComplete?: () => void;
   onGameOver?: () => void;
   onJumpAttemptReady?: (attemptFn: (outcome: JumpOutcome) => void) => void;
+  resetConsecutivePerfect?: () => void;
   setGameState: (state: GameState) => void;
 }
 
@@ -43,6 +44,7 @@ export const GameUI = ({
   onLevelComplete,
   onGameOver,
   onJumpAttemptReady,
+  resetConsecutivePerfect,
 }: GameUIProps) => {
   const progress = (jumpsCleared / jumpsRequired) * 100;
 
@@ -149,6 +151,10 @@ export const GameUI = ({
     height: 80,
     cleared: false,
   });
+
+  // Track fence passing detection
+  const lastFenceX = useRef<number>(600);
+  const fencePassedWithoutJump = useRef<boolean>(false);
 
   useEffect(() => {
     const grassY = getGrassY(sizeRef.current.height);
@@ -346,6 +352,30 @@ export const GameUI = ({
     if (onJumpAttemptReady) onJumpAttemptReady(handleJumpAttempt);
   }, [onJumpAttemptReady, handleJumpAttempt]);
 
+  // Fence passing detection - reset consecutive perfect if fence passes without jump
+  useEffect(() => {
+    if (!isGameActive || !readyToPlay || !resetConsecutivePerfect) return;
+
+    const checkFencePassing = () => {
+      const fenceX = currentJumpObstacle.current.x;
+      const horseX = horse.current.x;
+      
+      // If fence has moved significantly to the left (passed the rider)
+      if (fenceX < lastFenceX.current - 50) {
+        // Check if fence passed the rider without being cleared
+        if (!currentJumpObstacle.current.cleared && fenceX < horseX - 100) {
+          // Fence passed without jump - reset consecutive perfect bonus
+          fencePassedWithoutJump.current = true;
+          resetConsecutivePerfect();
+        }
+        lastFenceX.current = fenceX;
+      }
+    };
+
+    const interval = setInterval(checkFencePassing, 100); // Check every 100ms
+    return () => clearInterval(interval);
+  }, [isGameActive, readyToPlay, resetConsecutivePerfect]);
+
   return (
     <>
       {/* small top-left level badge */}
@@ -474,13 +504,6 @@ export const GameUI = ({
             try {
               // Use the first fence for game logic (closest to rider)
               const rect = rects[0];
-              
-              // Check if rider is after (behind) the fence with no jump outcome
-              if (horse.current.x > rect.x + rect.width && !currentJumpObstacle.current.cleared) {
-                // Rider is behind fence and fence wasn't cleared - reset consecutive perfect bonus
-                onJumpFailed?.('fence-passed');
-              }
-              
               // forward the fence rectangle to the game's obstacle so visuals align
               currentJumpObstacle.current.x = rect.x;
               currentJumpObstacle.current.y = rect.y;

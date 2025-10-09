@@ -37,7 +37,7 @@ export const useGameState = () => {
     gameDataRef.current = gameData;
   }, [gameData]);
 
-  const getLevelConfig = (levelNum: number): Level => {
+  const getLevelConfig = useCallback((levelNum: number): Level => {
     const baseJumps = 10;
     const baseTime = 60;
     const baseSpacing = 400;
@@ -52,7 +52,7 @@ export const useGameState = () => {
       jumpHeight: Math.min(120, baseHeight + (levelNum - 1) * 5),
       meterSpeed: baseMeterSpeed + (levelNum - 1) * 4,
     };
-  };
+  }, []);
 
   const startGame = useCallback(
     async (playerName: string, avatarId: number, horseId: number, startingLevel: number = 1) => {
