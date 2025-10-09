@@ -5,7 +5,52 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pixel Art Equestrian Jumping Game</title>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <!-- Local font loading for better performance -->
+    <link rel="preload" href="/fonts/press-start-2p.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+    <link rel="stylesheet" href="/fonts/press-start-2p.css">
+    
+    <!-- Preload critical assets for better LCP -->
+    <link rel="preload" href="/src/assets/temp.gif" as="image" type="image/gif" fetchpriority="high">
+    <link rel="preload" href="/src/assets/jump.gif" as="image" type="image/gif">
+    
+    <!-- Preload fence image for AnimatedBackground -->
+    <link rel="preload" href="/src/assets/objects/vfence.png" as="image" type="image/png">
+    
+    <!-- Critical CSS for LCP optimization -->
+    <style>
+      /* Critical styles for above-the-fold content */
+      html, body, #root {
+        font-family: 'Press Start 2P', monospace;
+        height: 100dvh;
+        margin: 0;
+        padding: 0;
+      }
+      
+      .pixelated {
+        image-rendering: pixelated;
+        image-rendering: -moz-crisp-edges;
+        image-rendering: crisp-edges;
+      }
+      
+      /* Font is now loaded locally for better performance */
+      
+      /* Critical button styles */
+      .btn-primary {
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: transform 0.1s ease;
+      }
+      
+      .btn-primary:hover {
+        transform: translateY(-1px);
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

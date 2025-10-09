@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import defaultGirl from "../assets/characters/default_girl.jpg";
 import blondeGirl from "../assets/characters/blonde.jpg";
 import brownGirl from "../assets/characters/brown.jpg";

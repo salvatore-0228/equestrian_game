@@ -1,8 +1,9 @@
 import { RotateCcw, Home, Trophy } from 'lucide-react';
 
 interface GameOverProps {
-  score: number;
-  level: number;
+  totalScore: number;
+  highestLevelReached: number;
+  currentLevel: number;
   jumpsCleared: number;
   onRestart: () => void;
   onMenu: () => void;
@@ -10,8 +11,9 @@ interface GameOverProps {
 }
 
 export const GameOver = ({
-  score,
-  level,
+  totalScore,
+  highestLevelReached,
+  currentLevel,
   jumpsCleared,
   onRestart,
   onMenu,
@@ -24,16 +26,20 @@ export const GameOver = ({
         <p className="text-center text-gray-600 mb-6">Better luck next time!</p>
 
         <div className="bg-gray-50 rounded-lg p-6 mb-6 space-y-3">
-          <div className="flex justify-between items-center">
-            <span className="text-gray-600">Final Score:</span>
-            <span className="text-2xl font-bold text-gray-800">{score}</span>
+          <div className="flex justify-between items-center border-b pb-2">
+            <span className="text-gray-600 font-semibold">Highest Level Reached:</span>
+            <span className="text-3xl font-bold text-blue-600">{highestLevelReached}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-gray-600">Level Reached:</span>
-            <span className="text-xl font-semibold text-gray-800">{level}</span>
+            <span className="text-gray-600">Total Points Accumulated:</span>
+            <span className="text-2xl font-bold text-gray-800">{totalScore.toLocaleString()}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-gray-600">Total Jumps:</span>
+            <span className="text-gray-600">Current Level:</span>
+            <span className="text-xl font-semibold text-gray-800">{currentLevel}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-600">Jumps Cleared:</span>
             <span className="text-xl font-semibold text-gray-800">{jumpsCleared}</span>
           </div>
         </div>

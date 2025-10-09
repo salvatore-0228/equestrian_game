@@ -1,0 +1,219 @@
+{
+  "version": "1.0.0",
+  "description": "Equestrian Game Level Configuration",
+  "defaultLevel": 1,
+  "maxLevel": 10,
+  "levels": [
+    {
+      "id": 1,
+      "name": "Beginner's Meadow",
+      "description": "Your first equestrian challenge",
+      "timeLimit": 60,
+      "requiredJumps": 10,
+      "meterSpeed": 2.0,
+      "difficulty": "beginner",
+      "environment": "meadow",
+      "unlockRequirements": {
+        "previousLevel": null
+      }
+    },
+    {
+      "id": 2,
+      "name": "Grassland Practice",
+      "description": "Building confidence on open fields",
+      "timeLimit": 55,
+      "requiredJumps": 12,
+      "meterSpeed": 2.2,
+      "difficulty": "beginner",
+      "environment": "grassland",
+      "unlockRequirements": {
+        "previousLevel": 1
+      }
+    },
+    {
+      "id": 3,
+      "name": "Rolling Hills",
+      "description": "Gentle slopes and steady rhythm",
+      "timeLimit": 50,
+      "requiredJumps": 14,
+      "meterSpeed": 2.4,
+      "difficulty": "beginner",
+      "environment": "hills",
+      "unlockRequirements": {
+        "previousLevel": 2
+      }
+    },
+    {
+      "id": 4,
+      "name": "Autumn Trail",
+      "description": "Navigating through fallen leaves",
+      "timeLimit": 50,
+      "requiredJumps": 17,
+      "meterSpeed": 2.6,
+      "difficulty": "intermediate",
+      "environment": "autumn",
+      "unlockRequirements": {
+        "previousLevel": 3
+      }
+    },
+    {
+      "id": 5,
+      "name": "Forest Path",
+      "description": "Precision required in tight spaces",
+      "timeLimit": 45,
+      "requiredJumps": 19,
+      "meterSpeed": 2.8,
+      "difficulty": "intermediate",
+      "environment": "forest",
+      "unlockRequirements": {
+        "previousLevel": 4
+      }
+    },
+    {
+      "id": 6,
+      "name": "Mountain Base",
+      "description": "Preparing for higher challenges",
+      "timeLimit": 45,
+      "requiredJumps": 22,
+      "meterSpeed": 3.0,
+      "difficulty": "intermediate",
+      "environment": "mountain",
+      "unlockRequirements": {
+        "previousLevel": 5
+      }
+    },
+    {
+      "id": 7,
+      "name": "Rocky Terrain",
+      "description": "Advanced precision and timing",
+      "timeLimit": 40,
+      "requiredJumps": 25,
+      "meterSpeed": 3.3,
+      "difficulty": "advanced",
+      "environment": "rocky",
+      "unlockRequirements": {
+        "previousLevel": 6
+      }
+    },
+    {
+      "id": 8,
+      "name": "Steep Slopes",
+      "description": "Mastering challenging inclines",
+      "timeLimit": 40,
+      "requiredJumps": 28,
+      "meterSpeed": 3.6,
+      "difficulty": "advanced",
+      "environment": "slopes",
+      "unlockRequirements": {
+        "previousLevel": 7
+      }
+    },
+    {
+      "id": 9,
+      "name": "Peak Challenge",
+      "description": "The ultimate test of skill",
+      "timeLimit": 35,
+      "requiredJumps": 32,
+      "meterSpeed": 4.0,
+      "difficulty": "advanced",
+      "environment": "peak",
+      "unlockRequirements": {
+        "previousLevel": 8
+      }
+    },
+    {
+      "id": 10,
+      "name": "Master's Arena",
+      "description": "The pinnacle of equestrian mastery",
+      "timeLimit": 35,
+      "requiredJumps": 35,
+      "meterSpeed": 4.5,
+      "difficulty": "expert",
+      "environment": "arena",
+      "unlockRequirements": {
+        "previousLevel": 9
+      }
+    }
+  ],
+  "difficultySettings": {
+    "beginner": {
+      "color": "#10B981",
+      "label": "BEGINNER",
+      "stars": [1, 2, 3]
+    },
+    "intermediate": {
+      "color": "#F59E0B",
+      "label": "INTERMEDIATE",
+      "stars": [4, 5, 6]
+    },
+    "advanced": {
+      "color": "#3B82F6",
+      "label": "ADVANCED",
+      "stars": [7, 8, 9]
+    },
+    "expert": {
+      "color": "#8B5CF6",
+      "label": "EXPERT",
+      "stars": [10]
+    }
+  },
+  "environmentSettings": {
+    "meadow": {
+      "gradient": "linear-gradient(135deg, #87CEEB 0%, #98FB98 50%, #90EE90 100%)",
+      "description": "Peaceful green meadows"
+    },
+    "grassland": {
+      "gradient": "linear-gradient(135deg, #87CEEB 0%, #9ACD32 50%, #ADFF2F 100%)",
+      "description": "Open grassland plains"
+    },
+    "hills": {
+      "gradient": "linear-gradient(135deg, #87CEEB 0%, #32CD32 50%, #228B22 100%)",
+      "description": "Rolling countryside hills"
+    },
+    "autumn": {
+      "gradient": "linear-gradient(135deg, #FFB347 0%, #FF8C42 50%, #FF7F50 100%)",
+      "description": "Autumn forest trails"
+    },
+    "forest": {
+      "gradient": "linear-gradient(135deg, #228B22 0%, #32CD32 50%, #006400 100%)",
+      "description": "Dense forest paths"
+    },
+    "mountain": {
+      "gradient": "linear-gradient(135deg, #2E8B57 0%, #228B22 50%, #006400 100%)",
+      "description": "Mountain base trails"
+    },
+    "rocky": {
+      "gradient": "linear-gradient(135deg, #708090 0%, #696969 50%, #2F4F4F 100%)",
+      "description": "Rocky mountain terrain"
+    },
+    "slopes": {
+      "gradient": "linear-gradient(135deg, #4682B4 0%, #5F9EA0 50%, #2E8B57 100%)",
+      "description": "Steep mountain slopes"
+    },
+    "peak": {
+      "gradient": "linear-gradient(135deg, #483D8B 0%, #2F4F4F 50%, #191970 100%)",
+      "description": "Mountain peak challenges"
+    },
+    "arena": {
+      "gradient": "linear-gradient(135deg, #800080 0%, #4B0082 50%, #000080 100%)",
+      "description": "Master's championship arena"
+    }
+  },
+  "progressionRules": {
+    "timeLimitDecrease": 5,
+    "jumpsIncrease": {
+      "min": 2,
+      "max": 3
+    },
+    "meterSpeedIncrease": {
+      "percentage": 10
+    }
+  },
+  "scoring": {
+    "perfectJump": 100,
+    "tooEarlyPenalty": 0,
+    "tooLatePenalty": 50,
+    "multiplierIncrement": 0.1,
+    "maxMultiplier": 0.5
+  }
+}

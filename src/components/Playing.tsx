@@ -9,7 +9,7 @@ interface PlayingProps {
   onLevelComplete: () => void;
   onGameOver: () => void;
   onTimeDecrement: () => void;
-  resetScore: () => void;
+  resetConsecutivePerfect: () => void;
   setGameState: (state:GameState) => void;
 }
 
@@ -20,7 +20,7 @@ export const Playing = ({
   onLevelComplete,
   onGameOver,
   onTimeDecrement,
-  resetScore,
+  resetConsecutivePerfect,
   setGameState
 }: PlayingProps) => {
   const jumpAttemptFnRef = useRef<((outcome: JumpOutcome) => void) | null>(null);
@@ -54,11 +54,16 @@ export const Playing = ({
           setTimeout(() => setFeedback(null), 1400);
         }}
         onJumpFailed={(reason) => {
-          const msg = reason === 'too-early' ? 'Keep Going!' : reason === 'too-late' ? 'Oops! Jump again' : 'Miss';
+          let msg = reason === 'too-early' ? 'Keep Going!' : reason === 'too-late' ? 'Oops! Jump again' : 'Miss';
+          if (reason === 'perfect-miss') {
+            msg = 'Miss';
+          } else if (reason === 'fence-passed') {
+            msg = 'Missed Fence!';
+          }
           setFeedback(msg);
-          // zero the player's score when a jump is missed (any failure outcome)
+          // Reset consecutive perfect streak on failed attempt
           try {
-            resetScore();
+            resetConsecutivePerfect();
           } catch (e) {}
           setTimeout(() => setFeedback(null), 1400);
         }}
@@ -88,7 +93,7 @@ export const Playing = ({
       {gameData.consecutivePerfect >= 2 && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-40">
           <div className="bg-yellow-400 text-gray-900 px-6 py-3 rounded-full font-bold shadow-2xl animate-pulse">
-            {Math.floor(gameData.consecutivePerfect * 10)}% MULTIPLIER!
+            +{(gameData.consecutivePerfect - 1) * 10}% BONUS!
           </div>
         </div>
       )}

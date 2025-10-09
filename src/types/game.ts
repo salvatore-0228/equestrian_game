@@ -1,4 +1,4 @@
-export type GameState = 'menu' | 'avatar-select' | 'playing' | 'level-complete' | 'game-over' | 'leaderboard';
+export type GameState = 'menu' | 'level-select' | 'avatar-select' | 'playing' | 'level-complete' | 'game-over' | 'leaderboard';
 
 export type JumpOutcome = 'too-early' | 'perfect' | 'too-late';
 
@@ -56,8 +56,11 @@ export interface GameData {
   playerName: string;
   avatarId: number;
   horseId: number;
-  score: number;
+  score: number; // Current level score
+  totalScore: number; // Cumulative score across all levels
   level: number;
+  highestLevelReached: number;
+  unlockedLevels: number; // Number of levels unlocked (persistent)
   jumpsCleared: number;
   railsDown: number;
   consecutivePerfect: number;

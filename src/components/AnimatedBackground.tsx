@@ -1,9 +1,19 @@
 import { useEffect, useRef } from "react";
-import fenceSrc from "../assets/objects/vfence.png";
+
+// Lazy load fence image for better LCP
+const fenceSrc = "/src/assets/objects/vfence.png";
 
 type FenceRect = { x: number; y: number; width: number; height: number };
 
-export const AnimatedBackground = ({ onFenceRect, paused }: { onFenceRect?: (rect: FenceRect | null) => void, paused?: boolean }) => {
+interface Fence {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  id: number;
+}
+
+export const AnimatedBackground = ({ onFenceRect, paused }: { onFenceRect?: (rects: FenceRect[]) => void, paused?: boolean }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pausedRef = useRef<boolean>(!!paused);
 
@@ -13,32 +23,66 @@ export const AnimatedBackground = ({ onFenceRect, paused }: { onFenceRect?: (rec
   }, [paused]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    // Small delay to let LCP elements render first
+    const initTimer = setTimeout(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-  let animationFrame: number;
-  let cloudOffset = 0;
-  let grassOffset = 0;
-  // single fence X position (world coordinate). Start off to the right
-  let fenceX = Infinity;
-  let nextFenceGap = 0; // gap to next fence when scheduling
+      let animationFrame: number;
+      let cloudOffset = 0;
+      let grassOffset = 0;
+      
+      // Multiple fences system
+      let fences: Fence[] = [];
+      let fenceIdCounter = 0;
 
-    const fenceImage = new Image();
-    let fenceLoaded = false;
-    fenceImage.src = fenceSrc;
-    fenceImage.onload = () => {
-      fenceLoaded = true;
-    };
+      const fenceImage = new Image();
+      let fenceLoaded = false;
+      fenceImage.src = fenceSrc;
+      fenceImage.onload = () => {
+        fenceLoaded = true;
+      };
 
-    const draw = () => {
-      const width = canvas.width;
-      const height = canvas.height;
+      // Helper function to generate consistent distance between fences
+      const getConsistentFenceDistance = () => {
+        return 400; // Fixed distance between all fences for consistent timing
+      };
 
-  // compute integer band heights to avoid fractional gaps
-  const skyH = Math.floor(height * 0.62);
+      // Helper function to create a new fence
+      const createFence = (x: number, tileW: number, tileH: number, y: number): Fence => {
+        return {
+          x,
+          y,
+          width: tileW,
+          height: tileH,
+          id: ++fenceIdCounter
+        };
+      };
+
+      // Helper function to initialize fences
+      const initializeFences = (width: number, tileW: number, tileH: number, y: number) => {
+        if (fences.length === 0) {
+          // Create initial fences with consistent spacing
+          let currentX = width + 400; // Start with consistent distance
+          fences.push(createFence(currentX, tileW, tileH, y));
+          
+          // Add more fences to fill the screen with consistent spacing
+          for (let i = 0; i < 3; i++) {
+            currentX += getConsistentFenceDistance();
+            fences.push(createFence(currentX, tileW, tileH, y));
+          }
+        }
+      };
+
+      const draw = () => {
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // compute integer band heights to avoid fractional gaps
+        const skyH = Math.floor(height * 0.62);
   const soilH = Math.floor(height * 0.09);
   const grassY = skyH + soilH;
   const grassH = height - grassY;
@@ -92,39 +136,48 @@ export const AnimatedBackground = ({ onFenceRect, paused }: { onFenceRect?: (rec
         drawGrassBlade(x + 12, grassY + 20);
       }
 
-      // draw tiled fence image if loaded; otherwise skip until available
+      // draw multiple fences if loaded; otherwise skip until available
       if (fenceLoaded) {
         const tileW = Math.max(60, Math.min(140, Math.floor(width / 10)));
         const tileH = Math.floor(
           tileW *
             (fenceImage.naturalHeight / Math.max(1, fenceImage.naturalWidth))
         );
-  // place fence so its bottom aligns slightly into the grass (ground)
-  const y = Math.floor(grassY) - tileH + 2;
+        // place fence so its bottom aligns slightly into the grass (ground)
+        const y = Math.floor(grassY) - tileH + 2;
 
-        // schedule first fence if needed
-        if (!isFinite(fenceX)) {
-          // already scheduled
-        } else if (fenceX === Infinity) {
-          // initialize: place a fence just off the right edge
-          fenceX = width + (Math.floor(Math.random() * tileW) + tileW);
-          nextFenceGap = Math.floor(tileW * 1.5) + Math.floor(Math.random() * Math.floor(tileW * 1.5));
-        }
+        // Initialize fences if needed
+        initializeFences(width, tileW, tileH, y);
 
-        // draw the single fence at fenceX world coordinate (convert to screen)
-        const screenX = Math.round(fenceX);
-        ctx.drawImage(fenceImage, screenX, y, tileW, tileH);
-
-        // emit fence rect (screen coordinates) for consumers who want to react
-        if (typeof onFenceRect === 'function') {
+        // Collect all visible fences for collision detection
+        const visibleFences: FenceRect[] = [];
+        
+        // Draw all visible fences
+        fences.forEach((fence) => {
+          const screenX = Math.round(fence.x);
+          
+          // Only draw if fence is visible on screen (with some buffer)
+          if (screenX > -tileW && screenX < width + tileW) {
+            ctx.drawImage(fenceImage, screenX, fence.y, fence.width, fence.height);
+            
+            // Add to visible fences list
+            visibleFences.push({ 
+              x: screenX, 
+              y: fence.y, 
+              width: fence.width, 
+              height: fence.height 
+            });
+          }
+        });
+        
+        // Emit all visible fences for collision detection
+        if (typeof onFenceRect === 'function' && visibleFences.length > 0) {
           try {
-            onFenceRect({ x: screenX, y, width: tileW, height: tileH });
+            onFenceRect(visibleFences);
           } catch (e) {
             // swallow to avoid breaking render loop
           }
         }
-
-        // note: movement handled below by decrementing fenceX
       }
 
       // Only advance motion variables when not paused. When paused we still draw the current frame
@@ -137,21 +190,33 @@ export const AnimatedBackground = ({ onFenceRect, paused }: { onFenceRect?: (rec
         grassOffset += scrollSpeed;
         if (grassOffset > width + 50) grassOffset -= (width + 50);
 
-        // Move single fence leftward at same speed; when it goes off left, schedule the next one
+        // Move all fences leftward at same speed
         if (fenceLoaded) {
-          if (fenceX === Infinity) {
-            // initialize if not set
-            fenceX = width + nextFenceGap;
-          } else {
-            fenceX -= scrollSpeed;
-            const tileW = Math.max(60, Math.min(140, Math.floor(width / 10)));
-            if (fenceX < -tileW) {
-              // schedule next fence to appear to the right after a random gap
-              const minGap = Math.floor(tileW * 1.5);
-              const maxGap = Math.floor(tileW * 3);
-              const gap = minGap + Math.floor(Math.random() * (maxGap - minGap + 1));
-              fenceX = width + gap;
-            }
+          const tileW = Math.max(60, Math.min(140, Math.floor(width / 10)));
+          const tileH = Math.floor(
+            tileW * (fenceImage.naturalHeight / Math.max(1, fenceImage.naturalWidth))
+          );
+          const y = Math.floor(grassY) - tileH + 2;
+
+          // Move all fences left
+          fences.forEach(fence => {
+            fence.x -= scrollSpeed;
+          });
+
+          // Remove fences that have moved off the left side of the screen
+          fences = fences.filter(fence => fence.x > -tileW);
+
+          // Add new fences when needed (when the rightmost fence is getting close to the right edge)
+          const rightmostFence = fences.reduce((rightmost, fence) => 
+            fence.x > rightmost.x ? fence : rightmost, 
+            fences[0] || { x: -Infinity }
+          );
+
+          // If we need more fences (when rightmost is getting close to screen edge)
+          if (fences.length < 5 || rightmostFence.x < width + 200) {
+            // Always place new fence at a consistent distance from the rightmost fence
+            const newFenceX = rightmostFence.x + getConsistentFenceDistance();
+            fences.push(createFence(newFenceX, tileW, tileH, y));
           }
         }
       }
@@ -161,10 +226,10 @@ export const AnimatedBackground = ({ onFenceRect, paused }: { onFenceRect?: (rec
 
     draw();
 
+    }, 100); // 100ms delay to let LCP elements render first
+
     return () => {
-      if (animationFrame) {
-        cancelAnimationFrame(animationFrame);
-      }
+      clearTimeout(initTimer);
     };
   }, []);
 
