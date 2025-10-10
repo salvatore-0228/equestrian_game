@@ -1,9 +1,7 @@
 /* Press Start 2P Font - Local Implementation */
 @font-face {
   font-family: 'Press Start 2P';
-  src: url('./press-start-2p.woff2') format('woff2'),
-       url('./press-start-2p.woff') format('woff'),
-       url('./press-start-2p.ttf') format('truetype');
+  src: url('./press-start-2p.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;

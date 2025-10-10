@@ -7,9 +7,9 @@ import { Horse, Jump, GameConfig, Level, JumpOutcome, GameState } from "../types
 import { EndModal } from "./EndModal";
 import isJumpSuccessful from "../lib/jumpChecker";
 
-// Lazy load GIFs for better LCP performance
-const tempGif = "/src/assets/temp.gif";
-const jumpGif = "/src/assets/jump.gif";
+// Use public directory paths for deployment
+const tempGif = "/temp.gif";
+const jumpGif = "/jump.gif";
 
 interface GameUIProps {
   score: number;

@@ -3,9 +3,9 @@ import { AnimatedBackground } from './AnimatedBackground';
 import StartPanel from './StartPanel';
 import { LevelSelect } from './LevelSelect';
 
-// Lazy load GIFs for better LCP performance
-const tempGif = '/src/assets/temp.gif';
-const jumpGif = '/src/assets/jump.gif';
+// Use public directory paths for deployment
+const tempGif = '/temp.gif';
+const jumpGif = '/jump.gif';
 
 interface MenuProps {
   onStartGame: (selectedLevel?: number) => void;

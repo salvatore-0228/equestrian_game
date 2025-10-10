@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
-// Lazy load fence image for better LCP
-const fenceSrc = "/src/assets/objects/vfence.png";
+// Use public directory path for deployment
+const fenceSrc = "/vfence.png";
 
 type FenceRect = { x: number; y: number; width: number; height: number };
 
