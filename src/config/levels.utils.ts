@@ -74,6 +74,23 @@ export const getDifficultyLabel = (levelId: number): string => {
 };
 
 /**
+ * Get timing zones for a level
+ */
+export const getTimingZones = (levelId: number) => {
+  const level = getLevelConfig(levelId);
+  if (!level) {
+    // Default timing zones for fallback
+    return {
+      perfect: 35,
+      good: 20,
+      poor: 45
+    };
+  }
+  
+  return level.timingZones;
+};
+
+/**
  * Get scoring configuration
  */
 export const getScoringConfig = () => {

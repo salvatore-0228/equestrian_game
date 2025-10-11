@@ -35,15 +35,15 @@ function App() {
         // Perfect jump: 100 points, counts as perfect and cleared, no rails down
         addScore(100, true, true, false);
         break;
-      case 'too-early':
-        // Too early: 0 points, not perfect, not cleared, rails down, reset streak
+      case 'good':
+        // Good jump: 50 points, not perfect, counts as cleared, no rails down, reset streak
+        resetConsecutivePerfect();
+        addScore(50, false, true, false);
+        break;
+      case 'poor':
+        // Poor jump: 0 points, not perfect, not cleared, rails down, reset streak
         resetConsecutivePerfect();
         addScore(0, false, false, true);
-        break;
-      case 'too-late':
-        // Too late: 50 points, not perfect, not cleared, no rails down, reset streak
-        resetConsecutivePerfect();
-        addScore(50, false, false, false);
         break;
     }
   };
@@ -51,7 +51,7 @@ function App() {
   const handleLevelComplete = () => {
     // Unlock the next level and show notification
     const nextLevelNumber = gameData.level + 1;
-    if (nextLevelNumber <= 10) { // Assuming max level is 10
+    if (nextLevelNumber <= 5) { // Max level is 5
       const newUnlockedCount = unlockNewLevel(nextLevelNumber);
       if (newUnlockedCount >= nextLevelNumber) {
         setUnlockedLevel(nextLevelNumber);

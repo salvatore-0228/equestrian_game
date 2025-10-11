@@ -40,7 +40,7 @@ const getLevelPreview = (levelNum: number) => {
 
 export const LevelSelect: React.FC<LevelSelectProps> = ({ 
   currentLevel = 1, 
-  maxLevel = 10, 
+  maxLevel = 5, 
   unlockedLevels = 1, 
   onSelect, 
   onCancel 

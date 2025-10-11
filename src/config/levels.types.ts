@@ -19,7 +19,14 @@ export interface Level {
   meterSpeed: number;
   difficulty: Difficulty;
   environment: Environment;
+  timingZones: TimingZones;
   unlockRequirements: UnlockRequirements;
+}
+
+export interface TimingZones {
+  perfect: number; // Perfect zone percentage (green)
+  good: number;    // Good zone percentage (yellow/orange)
+  poor: number;    // Poor zone percentage (red)
 }
 
 export interface UnlockRequirements {

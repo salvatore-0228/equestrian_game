@@ -54,9 +54,11 @@ export const Playing = ({
           setTimeout(() => setFeedback(null), 1400);
         }}
         onJumpFailed={(reason) => {
-          let msg = reason === 'too-early' ? 'Keep Going!' : reason === 'too-late' ? 'Oops! Jump again' : 'Miss';
-          if (reason === 'perfect-miss') {
-            msg = 'Miss';
+          let msg = 'Miss';
+          if (reason === 'good') {
+            msg = 'Good!';
+          } else if (reason === 'poor') {
+            msg = 'Keep Going!';
           }
           setFeedback(msg);
           // Reset consecutive perfect streak on failed attempt

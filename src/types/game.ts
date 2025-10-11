@@ -1,6 +1,6 @@
 export type GameState = 'menu' | 'level-select' | 'avatar-select' | 'playing' | 'level-complete' | 'game-over' | 'leaderboard';
 
-export type JumpOutcome = 'too-early' | 'perfect' | 'too-late';
+export type JumpOutcome = 'poor' | 'good' | 'perfect';
 
 export type TimingZone = 'early' | 'perfect' | 'late';
 

@@ -1,273 +1,185 @@
 import { useEffect, useState, useRef } from 'react';
 import { JumpOutcome } from '../types/game';
+import { getTimingZones } from '../config/levels.utils';
 
 interface TimingMeterProps {
-  speed: number;
-  onJumpAttempt: (outcome: JumpOutcome) => void;
+  onJumpAttempt: (val: boolean) => void;
   isActive: boolean;
+  distanceToFence: number;
+  setVal: (outcome: JumpOutcome) => void;
+  disabled?: boolean;
+  level: number;
 }
-export const TimingMeter = ({ speed, onJumpAttempt, isActive }: TimingMeterProps) => {
-  const [indicatorPosition, setIndicatorPosition] = useState(0);
-  const directionRef = useRef<'up' | 'down'>('down');
-  const lastTimeRef = useRef<number>(0);
-  const isActiveRef = useRef<boolean>(isActive);
-  const speedRef = useRef<number>(speed);
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const [buttonWidth, setButtonWidth] = useState(0);
-  const resumeTimeoutRef = useRef<number | null>(null);
+
+export const TimingMeter = ({ onJumpAttempt, isActive, distanceToFence, disabled = false, setVal, level }: TimingMeterProps) => {
+  const [indicatorPosition, setIndicatorPosition] = useState(0); // Start at left edge
+  const directionRef = useRef<'left' | 'right'>('right');
+  const intervalRef = useRef<number | null>(null);
+
+  // Get dynamic timing zones based on level configuration
+  const timingZones = getTimingZones(level);
   
-  // Afterimage system for click feedback
-  const [afterimages, setAfterimages] = useState<Array<{
-    position: number;
-    timestamp: number;
-    outcome: JumpOutcome;
-  }>>([]);
-  const afterimageCleanupRef = useRef<number | null>(null);
+  // Calculate zone positions based on level configuration
+  const PERFECT_ZONE_WIDTH = timingZones.perfect;
+  const GOOD_ZONE_WIDTH = timingZones.good;
+  
+  // Perfect zone is centered, good zones on each side, poor zones on edges
+  const PERFECT_ZONE_START = (100 - PERFECT_ZONE_WIDTH) / 2;
+  const PERFECT_ZONE_END = PERFECT_ZONE_START + PERFECT_ZONE_WIDTH;
+  
+  // Good zones are adjacent to perfect zone
+  const LEFT_GOOD_START = PERFECT_ZONE_START - GOOD_ZONE_WIDTH / 2;
+  const RIGHT_GOOD_END = PERFECT_ZONE_END + GOOD_ZONE_WIDTH / 2;
+  
+  // Poor zones are on the edges
+  const LEFT_POOR_WIDTH = LEFT_GOOD_START;
+  const RIGHT_POOR_WIDTH = 100 - RIGHT_GOOD_END;
 
-  // color bands: red | orange | green (perfect) | orange | red
-  // center green = 40%..60% (reduced from 30%..70% to make perfect zone half the size)
-  const PERFECT_ZONE_START = 40;
-  const PERFECT_ZONE_END = 60;
+  // Distance-based visibility logic
+  // Hide timing meter when distance to fence is greater than 300 pixels
+  const shouldShowMeter = distanceToFence <= 300 && distanceToFence > -100;
+  const isMeterActive = isActive && shouldShowMeter && !disabled;
 
-  // keep refs in sync with props
+  // Animation setup
   useEffect(() => {
-    isActiveRef.current = isActive;
-  }, [isActive]);
-
-  useEffect(() => {
-    speedRef.current = speed;
-  }, [speed]);
-
-  // measure button width for pixel-based translation
-  useEffect(() => {
-    const measure = () => {
-      const el = buttonRef.current;
-      if (el) setButtonWidth(el.clientWidth || 0);
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, []);
-
-  // Reset indicator when meter becomes active
-  useEffect(() => {
-    if (isActive) {
-      setIndicatorPosition(0);
-      directionRef.current = 'down';
-      lastTimeRef.current = 0;
-    }
-  }, [isActive]);
-
-  // resumeSignal handling removed - meter will auto-resume 3s after a click
-
-  // Single rAF loop that runs continuously but only moves indicator while active
-  // Interval-based tick (~60 FPS) to update indicator; start/stop based on paused/isActive
-  const intervalIdRef = useRef<number | null>(null);
-  useEffect(() => {
-  const tickMs = 10; // ~100fps for snappier motion
-    
-    // Calculate speed based on fence synchronization
-    // Fence spacing: 400px, Movement speed: 2px/frame, FPS: 60
-    // Time between fences: 400px ÷ 2px/frame ÷ 60fps = 3.33 seconds
-    // For 2 jumps per cycle: 3.33s ÷ 2 = 1.67s per full cycle
-    // Speed calculation: 100% (full cycle) ÷ 1.67s = 60% per second
-    const FENCE_SPACING = 400; // pixels
-    const MOVEMENT_SPEED = 2; // pixels per frame
-    const FPS = 60; // frames per second
-    const JUMPS_PER_CYCLE = 2; // target jumps per timing meter cycle
-    
-    const timeBetweenFences = FENCE_SPACING / (MOVEMENT_SPEED * FPS); // seconds
-    const timePerCycle = timeBetweenFences / JUMPS_PER_CYCLE; // seconds
-    const calculatedSpeed = 100 / timePerCycle; // percent per second
-    
-    // Debug logging for synchronization verification
-    console.log('Timing Meter Sync:', {
-      fenceSpacing: FENCE_SPACING,
-      movementSpeed: MOVEMENT_SPEED,
-      fps: FPS,
-      timeBetweenFences: timeBetweenFences.toFixed(2) + 's',
-      jumpsPerCycle: JUMPS_PER_CYCLE,
-      timePerCycle: timePerCycle.toFixed(2) + 's',
-      calculatedSpeed: calculatedSpeed.toFixed(2) + '%/s'
-    });
-
-    // clear any existing interval
-    if (intervalIdRef.current) {
-      clearInterval(intervalIdRef.current as any);
-      intervalIdRef.current = null;
+    if (!isMeterActive) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
     }
 
-    // only start if meter is active
-    if (!isActive) return;
+    // Start the indicator animation
+    intervalRef.current = window.setInterval(() => {
+      setIndicatorPosition(prev => {
+        const speed = 2; // Adjust speed as needed
+        let newPos = prev + (directionRef.current === 'right' ? speed : -speed);
 
-    intervalIdRef.current = window.setInterval(() => {
-      // Use calculated speed instead of prop speed for fence synchronization
-      const movement = (calculatedSpeed * tickMs) / 1000; // percent per tick
-
-      setIndicatorPosition((prev) => {
-        const delta = directionRef.current === 'down' ? movement : -movement;
-        let newPos = prev + delta;
-
+        // Bounce off edges
         if (newPos >= 100) {
           newPos = 100;
-          directionRef.current = 'up';
+          directionRef.current = 'left';
         } else if (newPos <= 0) {
           newPos = 0;
-          directionRef.current = 'down';
+          directionRef.current = 'right';
         }
 
-        return Math.min(100, Math.max(0, newPos));
+        return newPos;
       });
-    }, tickMs) as unknown as number;
+    }, 50); // 20 FPS
 
     return () => {
-      if (intervalIdRef.current) {
-        clearInterval(intervalIdRef.current as any);
-        intervalIdRef.current = null;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
-  }, [isActive]);
+  }, [isMeterActive]);
 
-  // (no CSS cycle; indicator is driven by rAF loop using indicatorPosition)
+  // Reset indicator when becoming active
+  useEffect(() => {
+    if (isMeterActive) {
+      setIndicatorPosition(0);
+      directionRef.current = 'right';
+    }
+  }, [isMeterActive]);
 
   const handleClick = () => {
-    // allow clicks regardless of isActive/paused state
+    if (!isMeterActive || disabled) return;
+
     let outcome: JumpOutcome;
 
+    // Determine outcome based on indicator position
     if (indicatorPosition >= PERFECT_ZONE_START && indicatorPosition <= PERFECT_ZONE_END) {
       outcome = 'perfect';
-    } else if (indicatorPosition < PERFECT_ZONE_START) {
-      outcome = 'too-early';
+    } else if (
+      (indicatorPosition >= LEFT_GOOD_START && indicatorPosition < PERFECT_ZONE_START) ||
+      (indicatorPosition > PERFECT_ZONE_END && indicatorPosition <= RIGHT_GOOD_END)
+    ) {
+      outcome = 'good';
     } else {
-      outcome = 'too-late';
+      outcome = 'poor';
     }
-
-    onJumpAttempt(outcome);
-    
-    // Create afterimage at current position instead of pausing
-    const newAfterimage = {
-      position: indicatorPosition,
-      timestamp: Date.now(),
-      outcome: outcome
-    };
-    
-    setAfterimages(prev => [...prev, newAfterimage]);
+    setVal(outcome);
+    onJumpAttempt (true);
+    // onJumpAttempt(outcome);
   };
 
-  // cleanup auto-resume timer and afterimages on unmount
-  useEffect(() => {
-    return () => {
-      if (resumeTimeoutRef.current) {
-        clearTimeout(resumeTimeoutRef.current as any);
-        resumeTimeoutRef.current = null;
-      }
-      if (afterimageCleanupRef.current) {
-        clearInterval(afterimageCleanupRef.current as any);
-        afterimageCleanupRef.current = null;
-      }
-    };
-  }, []);
-
-  // Cleanup expired afterimages every 100ms
-  useEffect(() => {
-    if (afterimageCleanupRef.current) {
-      clearInterval(afterimageCleanupRef.current as any);
-    }
-
-    afterimageCleanupRef.current = window.setInterval(() => {
-      const now = Date.now();
-      setAfterimages(prev => prev.filter(img => now - img.timestamp < 3000)); // Keep for 3 seconds
-    }, 100) as unknown as number;
-
-    return () => {
-      if (afterimageCleanupRef.current) {
-        clearInterval(afterimageCleanupRef.current as any);
-        afterimageCleanupRef.current = null;
-      }
-    };
-  }, []);
-
-
+  // Don't render if not active or distance is too far
+  if (!shouldShowMeter) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="text-white font-bold text-xl drop-shadow-lg">TIMING</div>
-
+      
       <button
         onClick={handleClick}
-        ref={buttonRef}
-        className="relative w-96 h-16 bg-gray-800 rounded-lg border-4 border-gray-700 shadow-2xl overflow-hidden cursor-pointer hover:border-yellow-500 transition-colors"
+        disabled={disabled}
+        className={`relative w-96 h-16 bg-gray-800 rounded-lg border-4 shadow-2xl overflow-hidden transition-colors focus:outline-none ${
+          disabled 
+            ? 'border-gray-500 cursor-not-allowed opacity-50' 
+            : 'border-gray-700 cursor-pointer hover:border-yellow-500 focus:border-yellow-400'
+        }`}
       >
-        {/* left red */}
+        {/* Left Poor Zone */}
         <div
-          className="absolute top-0 bottom-0"
-          style={{ left: '0%', width: '20%', background: 'linear-gradient(90deg,#7f0b0b,#a00b0b)', opacity: 0.9 }}
+          className="absolute top-0 bottom-0 bg-red-600"
+          style={{ 
+            left: '0%', 
+            width: `${LEFT_POOR_WIDTH}%`
+          }}
         />
 
-        {/* left orange */}
+        {/* Left Good Zone */}
         <div
-          className="absolute top-0 bottom-0"
-          style={{ left: '20%', width: '20%', background: 'linear-gradient(90deg,#e07a36,#ea8a48)', opacity: 0.95 }}
+          className="absolute top-0 bottom-0 bg-yellow-500"
+          style={{ 
+            left: `${LEFT_POOR_WIDTH}%`, 
+            width: `${GOOD_ZONE_WIDTH / 2}%`
+          }}
         />
 
-        {/* center green (perfect zone) */}
+        {/* Perfect Zone */}
         <div
-          className="absolute top-0 bottom-0"
-          style={{ left: '40%', width: '20%', background: 'linear-gradient(90deg,#16a34a,#10b981)' }}
-        >
-          {/* <div className="absolute inset-0 flex items-center justify-center text-white font-bold text-sm drop-shadow-lg">
-            PERFECT
-          </div> */}
-        </div>
-
-        {/* right orange */}
-        <div
-          className="absolute top-0 bottom-0"
-          style={{ left: '60%', width: '20%', background: 'linear-gradient(90deg,#ea8a48,#e07a36)', opacity: 0.95 }}
+          className="absolute top-0 bottom-0 bg-green-500"
+          style={{ 
+            left: `${PERFECT_ZONE_START}%`, 
+            width: `${PERFECT_ZONE_WIDTH}%`
+          }}
         />
 
-        {/* right red */}
+        {/* Right Good Zone */}
         <div
-          className="absolute top-0 bottom-0"
-          style={{ left: '80%', width: '20%', background: 'linear-gradient(90deg,#a00b0b,#7f0b0b)', opacity: 0.9 }}
+          className="absolute top-0 bottom-0 bg-yellow-500"
+          style={{ 
+            left: `${PERFECT_ZONE_END}%`, 
+            width: `${GOOD_ZONE_WIDTH / 2}%`
+          }}
         />
 
-        {/* Main indicator */}
+        {/* Right Poor Zone */}
         <div
-          className={`absolute top-0 bottom-0 w-2 bg-yellow-400 shadow-lg`}
+          className="absolute top-0 bottom-0 bg-red-600"
+          style={{ 
+            left: `${RIGHT_GOOD_END}%`, 
+            width: `${RIGHT_POOR_WIDTH}%`
+          }}
+        />
+
+        {/* Moving Indicator */}
+        <div
+          className="absolute top-0 bottom-0 w-2 bg-yellow-300 shadow-lg"
           style={{
-            left: 0,
-            transform: `translateX(${Math.round((indicatorPosition / 100) * buttonWidth)}px)`,
-            willChange: 'transform',
+            left: `${indicatorPosition}%`,
+            transform: 'translateX(-50%)',
+            willChange: 'left',
           }}
         >
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-yellow-300 rotate-45 shadow-xl"></div>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-yellow-200 rotate-45 shadow-xl"></div>
         </div>
-
-        {/* Afterimages - rendered behind main indicator */}
-        {afterimages.map((afterimage, index) => {
-          const age = Date.now() - afterimage.timestamp;
-          const opacity = Math.max(0, 1 - (age / 3000)); // Fade out over 3 seconds
-          
-          // Light yellow color for all afterimages
-          const afterimageColor = 'bg-yellow-200';
-          const afterimageDiamondColor = 'bg-yellow-100';
-          
-          return (
-            <div
-              key={`${afterimage.timestamp}-${index}`}
-              className={`absolute top-0 bottom-0 w-2 ${afterimageColor} shadow-lg transition-opacity duration-100`}
-              style={{
-                left: 0,
-                transform: `translateX(${Math.round((afterimage.position / 100) * buttonWidth)}px)`,
-                opacity: opacity,
-                willChange: 'transform',
-              }}
-            >
-              <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 ${afterimageDiamondColor} rotate-45 shadow-xl`}></div>
-            </div>
-          );
-        })}
       </button>
 
       <div className="text-white font-bold text-sm drop-shadow-lg">TAP TO JUMP</div>

@@ -16,6 +16,7 @@ interface Fence {
 export const AnimatedBackground = ({ onFenceRect, paused }: { onFenceRect?: (rects: FenceRect[]) => void, paused?: boolean }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pausedRef = useRef<boolean>(!!paused);
+  const animationFrameRef = useRef<number | null>(null);
 
   // keep pausedRef in sync without restarting the main animation effect (we want variables to persist)
   useEffect(() => {
@@ -31,7 +32,6 @@ export const AnimatedBackground = ({ onFenceRect, paused }: { onFenceRect?: (rec
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      let animationFrame: number;
       let cloudOffset = 0;
       let grassOffset = 0;
       
@@ -46,9 +46,9 @@ export const AnimatedBackground = ({ onFenceRect, paused }: { onFenceRect?: (rec
         fenceLoaded = true;
       };
 
-      // Helper function to generate consistent distance between fences
-      const getConsistentFenceDistance = () => {
-        return 400; // Fixed distance between all fences for consistent timing
+      // Helper function to generate variable distance between fences
+      const getVariableFenceDistance = () => {
+        return Math.random() * (800 - 500) + 500; // Random distance between 500-800 pixels
       };
 
       // Helper function to create a new fence
@@ -65,13 +65,13 @@ export const AnimatedBackground = ({ onFenceRect, paused }: { onFenceRect?: (rec
       // Helper function to initialize fences
       const initializeFences = (width: number, tileW: number, tileH: number, y: number) => {
         if (fences.length === 0) {
-          // Create initial fences with consistent spacing
-          let currentX = width + 400; // Start with consistent distance
+          // Create initial fences with variable spacing
+          let currentX = width + 600; // Start with initial distance within 500-800 range
           fences.push(createFence(currentX, tileW, tileH, y));
           
-          // Add more fences to fill the screen with consistent spacing
+          // Add more fences to fill the screen with variable spacing
           for (let i = 0; i < 3; i++) {
-            currentX += getConsistentFenceDistance();
+            currentX += getVariableFenceDistance();
             fences.push(createFence(currentX, tileW, tileH, y));
           }
         }
@@ -214,14 +214,14 @@ export const AnimatedBackground = ({ onFenceRect, paused }: { onFenceRect?: (rec
 
           // If we need more fences (when rightmost is getting close to screen edge)
           if (fences.length < 5 || rightmostFence.x < width + 200) {
-            // Always place new fence at a consistent distance from the rightmost fence
-            const newFenceX = rightmostFence.x + getConsistentFenceDistance();
+            // Place new fence at a variable distance from the rightmost fence
+            const newFenceX = rightmostFence.x + getVariableFenceDistance();
             fences.push(createFence(newFenceX, tileW, tileH, y));
           }
         }
       }
 
-      animationFrame = requestAnimationFrame(draw);
+      animationFrameRef.current = requestAnimationFrame(draw);
     };
 
     draw();
@@ -230,6 +230,9 @@ export const AnimatedBackground = ({ onFenceRect, paused }: { onFenceRect?: (rec
 
     return () => {
       clearTimeout(initTimer);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
     };
   }, []);
 

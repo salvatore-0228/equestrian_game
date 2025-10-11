@@ -1,7 +1,7 @@
 import { Timer, XCircle } from "lucide-react";
 import { TimingMeter } from "./TimingMeter";
 import { AnimatedBackground } from "./AnimatedBackground";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Horse, Jump, GameConfig, Level, JumpOutcome, GameState } from "../types/game";
 
 import { EndModal } from "./EndModal";
@@ -22,11 +22,9 @@ interface GameUIProps {
   isGameActive?: boolean;
   onJumpOutcome?: (outcome: JumpOutcome) => void;
   onJumpCleared?: () => void;
-  onJumpFailed?: (reason?: "perfect-miss" | "too-early" | "too-late") => void;
+  onJumpFailed?: (reason?: "perfect-miss" | "poor" | "good") => void;
   onLevelComplete?: () => void;
   onGameOver?: () => void;
-  onJumpAttemptReady?: (attemptFn: (outcome: JumpOutcome) => void) => void;
-  resetConsecutivePerfect?: () => void;
   setGameState: (state: GameState) => void;
 }
 
@@ -43,8 +41,6 @@ export const GameUI = ({
   onJumpFailed,
   onLevelComplete,
   onGameOver,
-  onJumpAttemptReady,
-  resetConsecutivePerfect,
 }: GameUIProps) => {
   const progress = (jumpsCleared / jumpsRequired) * 100;
 
@@ -60,14 +56,15 @@ export const GameUI = ({
 
   // duration to display the jump GIF (ms). Set to 3000ms so jump.gif remains visible for 3 seconds.
   const JUMP_GIF_DURATION = 1500;
-  const pendingOutcomeRef = useRef<JumpOutcome | null>(null);
-  const outcomeTimerRef = useRef<number>(0);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [readyToPlay, setReadyToPlay] = useState<boolean>(false);
   const countdownTimerRef = useRef<number | null>(null);
   const [showGo, setShowGo] = useState(false);
   const [bgPaused, setBgPaused] = useState(false);
+  const [distanceToFence, setDistanceToFence] = useState<number>(Infinity);
+  const [controlsDisabled, setControlsDisabled] = useState<boolean>(false);
   const timingContainerRef = useRef<HTMLDivElement | null>(null);
+  const [outcome, setOutcome] = useState<JumpOutcome | null>(null);
 
   // start countdown whenever the parent activates the game
   useEffect(() => {
@@ -76,6 +73,8 @@ export const GameUI = ({
         clearInterval(countdownTimerRef.current as any);
         countdownTimerRef.current = null;
       }
+      // Reset controls when game becomes inactive
+      setControlsDisabled(false);
       return;
     }
 
@@ -135,7 +134,7 @@ export const GameUI = ({
   };
 
   const horse = useRef<Horse>({
-    x: 0,
+    x: 150, // Move horse closer to center (was 0, now 150px from left)
     y: 0,
     velocityY: 0,
     width: 300,
@@ -152,9 +151,6 @@ export const GameUI = ({
     cleared: false,
   });
 
-  // Track fence passing detection
-  const lastFenceX = useRef<number>(600);
-  const fencePassedWithoutJump = useRef<boolean>(false);
 
   useEffect(() => {
     const grassY = getGrassY(sizeRef.current.height);
@@ -191,10 +187,13 @@ export const GameUI = ({
       canvas.height = Math.floor(h);
       sizeRef.current.width = canvas.width;
       sizeRef.current.height = canvas.height;
-      // keep the rider on the ground (align with AnimatedBackground grass)
-      try {
-        const grassY = getGrassY(sizeRef.current.height);
-        horse.current.y = grassY - horse.current.height + 2;
+        // keep the rider on the ground (align with AnimatedBackground grass) and centered
+        try {
+          const grassY = getGrassY(sizeRef.current.height);
+          horse.current.y = grassY - horse.current.height + 2;
+          // Keep horse centered horizontally (adjust if screen width changes significantly)
+          const screenCenter = Math.floor(w / 2);
+          horse.current.x = Math.max(100, Math.min(200, screenCenter - 150)); // Keep between 100-200px from left
         // update rider DOM overlay position/size to match horse
         const riderEl = riderRef.current;
         if (riderEl) {
@@ -233,93 +232,103 @@ export const GameUI = ({
     };
   }, [isGameActive, level, jumpsCleared, jumpsRequired, timeRemaining]);
 
-  const handleJumpAttempt = useCallback(
-    (outcome: JumpOutcome) => {
-      // allow multiple jump attempts per fence: set/replace the pending outcome even if one exists
-      pendingOutcomeRef.current = outcome;
-      outcomeTimerRef.current = 0;
-      onJumpOutcome?.(outcome);
+  const handleJumpAttempt = (outcome: JumpOutcome) => {
+    // Disable controls after jump attempt
+    setControlsDisabled(true);
+    
+    // Handle timing-based jump attempt
+    onJumpOutcome?.(outcome);
 
-      // consult current positions
-      const fenceX = currentJumpObstacle.current?.x ?? 0;
-      const horseX = horse.current?.x ?? 0;
+    // Consult current positions for spatial validation
+    const fenceX = currentJumpObstacle.current?.x ?? 0;
+    const horseX = horse.current?.x ?? 0;
 
-      // map timing outcomes to feedback using jump checker
-      try {
-        if (outcome === 'too-late') {
-          onJumpFailed?.('too-late');
-        } else if (outcome === 'too-early') {
-          onJumpFailed?.('too-early');
-        } else if (outcome === 'perfect') {
-          // perfect timing; verify spatially that the horse jumped before the fence-buffer
-          const ok = isJumpSuccessful(horseX, fenceX);
-          console.log(ok, horseX, fenceX)
-          if (ok) {
-            onJumpCleared?.();
-          } else {
-            // timing was perfect but spatially the jump missed the fence buffer
-            // report a perfect-miss so the UI shows the 'Miss' feedback message
-            onJumpFailed?.('perfect-miss');
-          }
+    // Map timing outcomes to feedback using jump checker
+    try {
+      if (outcome === 'poor') {
+        onJumpFailed?.('poor');
+      } else if (outcome === 'good') {
+        onJumpFailed?.('good');
+      } else if (outcome === 'perfect') {
+        // Perfect timing; verify spatially that the horse jumped before the fence-buffer
+        const ok = isJumpSuccessful(horseX, fenceX);
+        if (ok) {
+          onJumpCleared?.();
+        } else {
+          // Timing was perfect but spatially the jump missed the fence buffer
+          onJumpFailed?.('perfect-miss');
         }
-      } catch (e) {
-        // swallow checker errors
       }
+    } catch (e) {
+      // swallow checker errors
+    }
 
-      // swap to jump GIF for visual feedback (preserve previous behavior)
-      try {
-        if (riderRef.current) {
-          // clear any pending restore timer
-          if (riderJumpTimeoutRef.current) {
-            clearTimeout(riderJumpTimeoutRef.current as any);
-            riderJumpTimeoutRef.current = null;
-          }
-
-          // store original horse size so we can restore later
-          origHorseSizeRef.current = {
-            width: horse.current.width,
-            height: horse.current.height,
-          };
-
-          riderRef.current.src = jumpGif;
-          riderElevatedRef.current = true;
-          // nudge rider DOM overlay upwards while showing jump GIF
-          try {
-            const riderEl = riderRef.current;
-            if (riderEl) {
-              const reducedWidth = Math.round(horse.current.width * 0.9);
-              const widthDiff = horse.current.width - reducedWidth;
-              const leftPos = Math.round(horse.current.x + widthDiff / 2);
-              const topPos = Math.round(horse.current.y) - ELEVATION_OFFSET;
-              riderEl.style.left = `${leftPos}px`;
-              riderEl.style.top = `${topPos}px`;
-              riderEl.style.width = `${reducedWidth}px`;
-              riderEl.style.height = `${Math.round(horse.current.height)}px`;
-            }
-          } catch (e) {}
-          riderJumpTimeoutRef.current = window.setTimeout(() => {
-            try {
-              if (riderRef.current) riderRef.current.src = tempGif;
-              riderElevatedRef.current = false;
-              try {
-                const riderEl = riderRef.current;
-                if (riderEl) {
-                  // restore original sizing and position
-                  riderEl.style.width = `${Math.round(horse.current.width)}px`;
-                  riderEl.style.height = `${Math.round(horse.current.height)}px`;
-                  riderEl.style.left = `${Math.round(horse.current.x)}px`;
-                  const topPos = Math.round(horse.current.y);
-                  riderEl.style.top = `${topPos}px`;
-                }
-              } catch (e) {}
-            } catch (e) {}
-            riderJumpTimeoutRef.current = null;
-          }, JUMP_GIF_DURATION) as unknown as number;
+    // Visual feedback - swap to jump GIF
+    try {
+      if (riderRef.current) {
+        // clear any pending restore timer
+        if (riderJumpTimeoutRef.current) {
+          clearTimeout(riderJumpTimeoutRef.current as any);
+          riderJumpTimeoutRef.current = null;
         }
-      } catch (e) {}
-    },
-    [onJumpOutcome, onJumpCleared, onJumpFailed]
-  );
+
+        // store original horse size so we can restore later
+        origHorseSizeRef.current = {
+          width: horse.current.width,
+          height: horse.current.height,
+        };
+
+        // if(distanceToFence === 100) 
+          riderRef.current.src = jumpGif;
+        riderElevatedRef.current = true;
+        // nudge rider DOM overlay upwards while showing jump GIF
+        try {
+          const riderEl = riderRef.current;
+          if (riderEl) {
+            const reducedWidth = Math.round(horse.current.width * 0.9);
+            const widthDiff = horse.current.width - reducedWidth;
+            const leftPos = Math.round(horse.current.x + widthDiff / 2);
+            const topPos = Math.round(horse.current.y) - ELEVATION_OFFSET;
+            riderEl.style.left = `${leftPos}px`;
+            riderEl.style.top = `${topPos}px`;
+            riderEl.style.width = `${reducedWidth}px`;
+            riderEl.style.height = `${Math.round(horse.current.height)}px`;
+          }
+        } catch (e) {}
+        riderJumpTimeoutRef.current = window.setTimeout(() => {
+          try {
+            if (riderRef.current) riderRef.current.src = tempGif;
+            riderElevatedRef.current = false;
+            try {
+              const riderEl = riderRef.current;
+              if (riderEl) {
+                // restore original sizing and position
+                riderEl.style.width = `${Math.round(horse.current.width)}px`;
+                riderEl.style.height = `${Math.round(horse.current.height)}px`;
+                riderEl.style.left = `${Math.round(horse.current.x)}px`;
+                const topPos = Math.round(horse.current.y);
+                riderEl.style.top = `${topPos}px`;
+              }
+            } catch (e) {}
+          } catch (e) {}
+          riderJumpTimeoutRef.current = null;
+        }, JUMP_GIF_DURATION) as unknown as number;
+      }
+    } catch (e) {}
+  };
+
+  // Re-enable controls when rider passes the fence
+  useEffect(() => {
+    console.log('outcome', outcome);
+    if (controlsDisabled && distanceToFence < -100) {
+      // Rider has passed the fence (distance is negative and significant)
+      setControlsDisabled(false);
+    }
+    if(controlsDisabled && distanceToFence < 20) {
+      handleJumpAttempt(outcome ?? 'perfect');
+      setControlsDisabled(false);
+    }
+  }, [controlsDisabled, distanceToFence, outcome]);
 
   // cleanup any leftover timeout when component unmounts
   useEffect(() => {
@@ -342,39 +351,14 @@ export const GameUI = ({
           if (sizeRef.current.height) {
             const grassY = getGrassY(sizeRef.current.height);
             horse.current.y = grassY - horse.current.height + 2;
+            // Keep horse centered horizontally
+            const screenCenter = Math.floor(sizeRef.current.width / 2);
+            horse.current.x = Math.max(100, Math.min(200, screenCenter - 150));
           }
         }
       } catch (e) {}
     };
   }, []);
-
-  useEffect(() => {
-    if (onJumpAttemptReady) onJumpAttemptReady(handleJumpAttempt);
-  }, [onJumpAttemptReady, handleJumpAttempt]);
-
-  // Fence passing detection - reset consecutive perfect if fence passes without jump
-  useEffect(() => {
-    if (!isGameActive || !readyToPlay || !resetConsecutivePerfect) return;
-
-    const checkFencePassing = () => {
-      const fenceX = currentJumpObstacle.current.x;
-      const horseX = horse.current.x;
-      
-      // If fence has moved significantly to the left (passed the rider)
-      if (fenceX < lastFenceX.current - 50) {
-        // Check if fence passed the rider without being cleared
-        if (!currentJumpObstacle.current.cleared && fenceX < horseX - 100) {
-          // Fence passed without jump - reset consecutive perfect bonus
-          fencePassedWithoutJump.current = true;
-          resetConsecutivePerfect();
-        }
-        lastFenceX.current = fenceX;
-      }
-    };
-
-    const interval = setInterval(checkFencePassing, 100); // Check every 100ms
-    return () => clearInterval(interval);
-  }, [isGameActive, readyToPlay, resetConsecutivePerfect]);
 
   return (
     <>
@@ -466,9 +450,12 @@ export const GameUI = ({
         aria-hidden="false"
       >
         <TimingMeter
-          speed={level.meterSpeed}
           isActive={(isGameActive ?? false) && readyToPlay}
-          onJumpAttempt={handleJumpAttempt}
+          onJumpAttempt={(val) => setControlsDisabled(val)}
+          setVal={setOutcome}
+          distanceToFence={distanceToFence}
+          disabled={controlsDisabled}
+          level={level.number}
         />
       </div>
 
@@ -477,7 +464,10 @@ export const GameUI = ({
         <button
           type="button"
           aria-label="Large timing button"
+          disabled={controlsDisabled}
           onClick={() => {
+            if (controlsDisabled) return
+            // setCanJump(true);
             // find the inner button rendered by TimingMeter and trigger a click
             try {
               const innerBtn = timingContainerRef.current?.querySelector(
@@ -488,19 +478,27 @@ export const GameUI = ({
               }
             } catch (e) {
               // swallow errors — fallback: call handler with a conservative outcome if needed
-              // handleJumpAttempt("perfect"); // optional fallback
+              handleJumpAttempt("good"); // fallback to good timing
             }
           }}
-          className="w-36 h-36 rounded-full bg-green-600 border-4 border-white shadow-lg focus:outline-none"
+          className={`w-36 h-36 rounded-full border-4 shadow-lg focus:outline-none transition-colors ${
+            controlsDisabled
+              ? 'bg-gray-500 border-gray-400 cursor-not-allowed opacity-50'
+              : 'bg-green-600 border-white focus:border-yellow-400 hover:bg-green-700'
+          }`}
         />
       </div>
+
 
       {/* Animated background behind canvas */}
       <div style={{ position: "fixed", inset: 0, zIndex: -1 }}>
         <AnimatedBackground
           paused={bgPaused}
           onFenceRect={(rects) => {
-            if (!rects || rects.length === 0) return;
+            if (!rects || rects.length === 0) {
+              setDistanceToFence(Infinity);
+              return;
+            }
             try {
               // Use the first fence for game logic (closest to rider)
               const rect = rects[0];
@@ -509,6 +507,13 @@ export const GameUI = ({
               currentJumpObstacle.current.y = rect.y;
               currentJumpObstacle.current.width = rect.width;
               currentJumpObstacle.current.height = rect.height;
+              
+              // Calculate distance from rider to fence
+              const horseX = horse.current.x;
+              const fenceX = rect.x + rect.width / 2; // Fence center
+              const distance = fenceX - horseX;
+              setDistanceToFence(distance);
+              
               // keep cleared flag if already true
               // (do not reset cleared here to preserve game state)
             } catch (e) {

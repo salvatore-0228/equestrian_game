@@ -167,7 +167,7 @@ export const Menu = ({ onStartGame, onViewLeaderboard, unlockedLevels = 1 }: Men
       {showLevelSelect && (
         <LevelSelect
           currentLevel={1}
-          maxLevel={10}
+          maxLevel={5}
           unlockedLevels={unlockedLevels}
           onSelect={handleLevelSelect}
           onCancel={handleLevelSelectCancel}
