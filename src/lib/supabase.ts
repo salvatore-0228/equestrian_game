@@ -15,6 +15,7 @@ export interface Player {
   id: string;
   name: string;
   avatar_id: number;
+  horse_id: number;
   created_at: string;
 }
 
@@ -24,6 +25,8 @@ export interface GameScore {
   score: number;
   level_reached: number;
   jumps_cleared: number;
+  rails_down: number;
+  consecutive_perfect: number;
   game_duration: number;
   created_at: string;
 }

@@ -3,16 +3,17 @@ import { JumpOutcome } from '../types/game';
 import { getTimingZones, getLevelConfig } from '../config/levels.utils';
 
 interface TimingMeterProps {
-  onJumpAttempt: (val: boolean) => void;
+  onJumpAttempt: (val: JumpOutcome) => void;
   isActive: boolean;
   distanceToFence: number;
-  setVal: (outcome: JumpOutcome) => void;
   disabled?: boolean;
   level: number;
 }
 
-export const TimingMeter = ({ onJumpAttempt, isActive, distanceToFence, disabled = false, setVal, level }: TimingMeterProps) => {
+export const TimingMeter = ({ onJumpAttempt, isActive, distanceToFence, disabled = false, level }: TimingMeterProps) => {
   const [indicatorPosition, setIndicatorPosition] = useState(0); // Start at left edge
+  const [afterimagePosition, setAfterimagePosition] = useState<number | null>(null); // Afterimage position
+  const [isVisible, setIsVisible] = useState(false); // Visibility state for animation
   const directionRef = useRef<'left' | 'right'>('right');
   const intervalRef = useRef<number | null>(null);
 
@@ -68,19 +69,35 @@ export const TimingMeter = ({ onJumpAttempt, isActive, distanceToFence, disabled
   const [zones, setZones] = useState(() => generateMixedZones());
   
   // Distance-based visibility logic
-  // Hide timing meter when distance to fence is greater than 300 pixels
+  // Show timing meter when distance to fence is 300 or less, hide when distance is -100 or less
   const shouldShowMeter = distanceToFence <= 300 && distanceToFence > -100;
   const isMeterActive = isActive && shouldShowMeter && !disabled;
+
+  // Handle visibility with animation
+  useEffect(() => {
+    if (shouldShowMeter && isActive) {
+      setIsVisible(true);
+    } else {
+      // Delay hiding to allow fade-out animation
+      const timer = setTimeout(() => {
+        setIsVisible(false);
+      }, 300); // Match fade-out animation duration
+      return () => clearTimeout(timer);
+    }
+  }, [shouldShowMeter, isActive]);
   
   // Regenerate zones when level changes
   useEffect(() => {
     setZones(generateMixedZones());
+    setAfterimagePosition(null); // Clear afterimage when level changes
   }, [level]);
 
   // Regenerate zones whenever timing bar becomes visible (for random red zones each time)
   useEffect(() => {
     if (shouldShowMeter && isActive) {
       setZones(generateMixedZones());
+    } else {
+      setAfterimagePosition(null); // Clear afterimage when timing bar is hidden
     }
   }, [shouldShowMeter, isActive]);
   
@@ -149,6 +166,14 @@ export const TimingMeter = ({ onJumpAttempt, isActive, distanceToFence, disabled
   const handleClick = () => {
     if (!isMeterActive || disabled) return;
 
+    // Set afterimage at current indicator position
+    setAfterimagePosition(indicatorPosition);
+
+    // Clear afterimage after 2 seconds
+    setTimeout(() => {
+      setAfterimagePosition(null);
+    }, 2000);
+
     let outcome: JumpOutcome;
 
     // Determine outcome based on indicator position
@@ -162,28 +187,22 @@ export const TimingMeter = ({ onJumpAttempt, isActive, distanceToFence, disabled
     } else {
       outcome = 'poor';
     }
-    setVal(outcome);
-    onJumpAttempt (true);
-    // onJumpAttempt(outcome);
+    // onJumpAttempt (true);
+    onJumpAttempt(outcome);
   };
 
-  // Don't render if not active or distance is too far
-  if (!shouldShowMeter) {
+  // Don't render if not visible
+  if (!isVisible) {
     return null;
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className={`flex flex-col items-center gap-4 ${shouldShowMeter ? 'animate-fade-in' : 'animate-fade-out'}`}>
       <div className="text-white font-bold text-xl drop-shadow-lg">TIMING</div>
       
        <button
          onClick={handleClick}
-         disabled={disabled}
-         className={`relative w-[500px] h-16 bg-gray-800 rounded-lg border-4 shadow-2xl overflow-hidden transition-colors focus:outline-none ${
-           disabled 
-             ? 'border-gray-500 cursor-not-allowed opacity-50' 
-             : 'border-gray-700 cursor-pointer hover:border-yellow-500 focus:border-yellow-400'
-         }`}
+         className="relative w-[500px] h-16 bg-gray-800 rounded-lg border-4 border-gray-700 hover:border-yellow-400 shadow-2xl overflow-hidden transition-colors focus:outline-none focus:border-yellow-400"
        >
         {/* Left Red Zone */}
         <div
@@ -241,6 +260,19 @@ export const TimingMeter = ({ onJumpAttempt, isActive, distanceToFence, disabled
         >
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-yellow-200 rotate-45 shadow-xl"></div>
         </div>
+
+        {/* Afterimage Indicator */}
+        {afterimagePosition !== null && (
+          <div
+            className="absolute top-0 bottom-0 w-3 bg-blue-800 opacity-60 shadow-lg"
+            style={{
+              left: `${afterimagePosition}%`,
+              transform: 'translateX(-50%)',
+            }}
+          >
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-blue-700 rotate-45 shadow-xl"></div>
+          </div>
+        )}
       </button>
 
       <div className="text-white font-bold text-sm drop-shadow-lg">TAP TO JUMP</div>

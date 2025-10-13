@@ -56,14 +56,45 @@ export const useGameState = () => {
 
   const startGame = useCallback(
     async (playerName: string, avatarId: number, horseId: number, startingLevel: number = 1) => {
-      const { data: player, error } = await supabase
-        .from("players")
-        .insert({ name: playerName, avatar_id: avatarId, horse_id: horseId })
-        .select()
-        .maybeSingle();
+      let player;
+      
+      try {
+        const { data, error } = await supabase
+          .from("players")
+          .insert({ name: playerName, avatar_id: avatarId, horse_id: horseId })
+          .select()
+          .maybeSingle();
 
-      if (error || !player) {
-        console.error("Error creating player:", error);
+        if (error) {
+          console.error("Error creating player:", error);
+          
+          // If RLS policy error, try without horse_id (fallback for missing column)
+          if (error.code === '42501') {
+            console.log("Attempting fallback player creation without horse_id");
+            const { data: fallbackData, error: fallbackError } = await supabase
+              .from("players")
+              .insert({ name: playerName, avatar_id: avatarId })
+              .select()
+              .maybeSingle();
+            
+            if (fallbackError) {
+              console.error("Fallback player creation also failed:", fallbackError);
+              return false;
+            }
+            player = fallbackData;
+          } else {
+            return false;
+          }
+        } else {
+          player = data;
+        }
+      } catch (err) {
+        console.error("Unexpected error creating player:", err);
+        return false;
+      }
+
+      if (!player) {
+        console.error("No player data returned");
         return false;
       }
 
@@ -73,7 +104,7 @@ export const useGameState = () => {
         playerId: player.id,
         playerName: player.name,
         avatarId: player.avatar_id,
-        horseId: player.horse_id,
+        horseId: player.horse_id || horseId, // Use provided horseId if player.horse_id is null
         score: 0,
         totalScore: 0,
         level: startingLevel,

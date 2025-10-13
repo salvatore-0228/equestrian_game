@@ -25,6 +25,7 @@ interface GameUIProps {
   onJumpFailed?: (reason?: "perfect-miss" | "poor" | "good") => void;
   onLevelComplete?: () => void;
   onGameOver?: () => void;
+  onReadyToPlay?: (ready: boolean) => void; // Add callback for when game is ready
   setGameState: (state: GameState) => void;
 }
 
@@ -41,6 +42,7 @@ export const GameUI = ({
   onJumpFailed,
   onLevelComplete,
   onGameOver,
+  onReadyToPlay,
 }: GameUIProps) => {
   const progress = (jumpsCleared / jumpsRequired) * 100;
 
@@ -59,12 +61,11 @@ export const GameUI = ({
   const [countdown, setCountdown] = useState<number | null>(null);
   const [readyToPlay, setReadyToPlay] = useState<boolean>(false);
   const countdownTimerRef = useRef<number | null>(null);
-  const [showGo, setShowGo] = useState(false);
   const [bgPaused, setBgPaused] = useState(false);
   const [distanceToFence, setDistanceToFence] = useState<number>(Infinity);
   const [controlsDisabled, setControlsDisabled] = useState<boolean>(false);
+  const [largeButtonVisible, setLargeButtonVisible] = useState<boolean>(false);
   const timingContainerRef = useRef<HTMLDivElement | null>(null);
-  const [outcome, setOutcome] = useState<JumpOutcome | null>(null);
 
   // start countdown whenever the parent activates the game
   useEffect(() => {
@@ -75,33 +76,32 @@ export const GameUI = ({
       }
       // Reset controls when game becomes inactive
       setControlsDisabled(false);
+      setReadyToPlay(false);
+      onReadyToPlay?.(false);
       return;
     }
 
-    // begin 3-2-1-0 countdown and pause background during the entire sequence
+    // begin 3-2-1 countdown and pause background during the entire sequence
     setCountdown(3);
-    setShowGo(false);
     setBgPaused(true);
     
     let value = 3;
     countdownTimerRef.current = window.setInterval(() => {
       value -= 1;
-      setCountdown(value >= 0 ? value : 0);
-      if (value < 0) {
-        // show "Let's go" for a brief moment, then hide and start
+      setCountdown(value);
+      if (value <= 0) {
+        // Countdown finished, start game immediately
         setCountdown(null);
-        setShowGo(true);
         if (countdownTimerRef.current) {
           clearInterval(countdownTimerRef.current as any);
           countdownTimerRef.current = null;
         }
-        // hide GO and mark ready after 700ms
-        window.setTimeout(() => {
-          setShowGo(false);
-          setReadyToPlay(true);
-          // resume background motion after GO disappears
-          setBgPaused(false);
-        }, 700);
+        // Mark ready and start game
+        setReadyToPlay(true);
+        // resume background motion
+        setBgPaused(false);
+        // Notify parent that game is ready to start timer
+        onReadyToPlay?.(true);
       }
     }, 1000);
 
@@ -234,7 +234,6 @@ export const GameUI = ({
 
   const handleJumpAttempt = (outcome: JumpOutcome) => {
     // Disable controls after jump attempt
-    setControlsDisabled(true);
     
     // Handle timing-based jump attempt
     onJumpOutcome?.(outcome);
@@ -319,16 +318,28 @@ export const GameUI = ({
 
   // Re-enable controls when rider passes the fence
   useEffect(() => {
-    console.log('outcome', outcome);
+    console.log('distanceToFence', distanceToFence);
     if (controlsDisabled && distanceToFence < -100) {
       // Rider has passed the fence (distance is negative and significant)
-      setControlsDisabled(false);
     }
     if(controlsDisabled && distanceToFence < 20) {
-      handleJumpAttempt(outcome ?? 'perfect');
-      setControlsDisabled(false);
+      handleJumpAttempt('perfect');
     }
-  }, [controlsDisabled, distanceToFence, outcome]);
+  }, [distanceToFence]);
+
+  // Handle large button visibility with animation
+  useEffect(() => {
+    const shouldShowButton = distanceToFence <= 300 && distanceToFence > -100;
+    if (shouldShowButton && isGameActive) {
+      setLargeButtonVisible(true);
+    } else {
+      // Delay hiding to allow fade-out animation
+      const timer = setTimeout(() => {
+        setLargeButtonVisible(false);
+      }, 300); // Match fade-out animation duration
+      return () => clearTimeout(timer);
+    }
+  }, [distanceToFence, isGameActive]);
 
   // cleanup any leftover timeout when component unmounts
   useEffect(() => {
@@ -451,43 +462,39 @@ export const GameUI = ({
       >
         <TimingMeter
           isActive={(isGameActive ?? false) && readyToPlay}
-          onJumpAttempt={(val) => setControlsDisabled(val)}
-          setVal={setOutcome}
+          onJumpAttempt={(val: JumpOutcome) => handleJumpAttempt(val)}
           distanceToFence={distanceToFence}
-          disabled={controlsDisabled}
           level={level.number}
         />
       </div>
 
       {/* Large circular button that proxies to the timing meter click */}
-      <div className="fixed right-64 bottom-32 z-50">
-        <button
-          type="button"
-          aria-label="Large timing button"
-          disabled={controlsDisabled}
-          onClick={() => {
-            if (controlsDisabled) return
-            // setCanJump(true);
-            // find the inner button rendered by TimingMeter and trigger a click
-            try {
-              const innerBtn = timingContainerRef.current?.querySelector(
-                "button"
-              ) as HTMLButtonElement | null;
-              if (innerBtn && typeof innerBtn.click === "function") {
-                innerBtn.click();
+      {largeButtonVisible && (
+        <div className={`fixed right-64 bottom-32 z-50 ${distanceToFence <= 300 && distanceToFence > -100 ? 'animate-fade-in' : 'animate-fade-out'}`}>
+          <button
+            type="button"
+            aria-label="Large timing button"
+            // disabled={controlsDisabled}
+            onClick={() => {
+              // if (controlsDisabled) return
+              // setCanJump(true);
+              // find the inner button rendered by TimingMeter and trigger a click
+              try {
+                const innerBtn = timingContainerRef.current?.querySelector(
+                  "button"
+                ) as HTMLButtonElement | null;
+                if (innerBtn && typeof innerBtn.click === "function") {
+                  innerBtn.click();
+                }
+              } catch (e) {
+                // swallow errors — fallback: call handler with a conservative outcome if needed
+                handleJumpAttempt("good"); // fallback to good timing
               }
-            } catch (e) {
-              // swallow errors — fallback: call handler with a conservative outcome if needed
-              handleJumpAttempt("good"); // fallback to good timing
-            }
-          }}
-          className={`w-36 h-36 rounded-full border-4 shadow-lg focus:outline-none transition-colors ${
-            controlsDisabled
-              ? 'bg-gray-500 border-gray-400 cursor-not-allowed opacity-50'
-              : 'bg-green-600 border-white focus:border-yellow-400 hover:bg-green-700'
-          }`}
-        />
-      </div>
+            }}
+            className="w-36 h-36 rounded-full border-4 border-white bg-green-600 hover:border-yellow-400 hover:bg-green-700 shadow-lg focus:outline-none focus:border-yellow-400 focus:bg-green-700 transition-colors"
+          />
+        </div>
+      )}
 
 
       {/* Animated background behind canvas */}
@@ -558,16 +565,6 @@ export const GameUI = ({
         </div>
       )}
 
-      {showGo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div
-            className="text-center text-white drop-shadow-2xl text-6xl font-extrabold animate-go-pop"
-            style={{ fontFamily: "'Press Start 2P', monospace" }}
-          >
-            LET&apos;S GO!
-          </div>
-        </div>
-      )}
     </>
   );
 };

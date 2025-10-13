@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { GameUI } from './GameUI';
 import { GameData, Level, JumpOutcome, GameState } from '../types/game';
 
@@ -23,20 +23,27 @@ export const Playing = ({
   resetConsecutivePerfect,
   setGameState
 }: PlayingProps) => {
-  const jumpAttemptFnRef = useRef<((outcome: JumpOutcome) => void) | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [gameReady, setGameReady] = useState<boolean>(false);
 
+  // Start timer only when game is ready (after 3-2-1 countdown)
   useEffect(() => {
-    if (!gameData.isGameActive) return;
+    if (!gameData.isGameActive || !gameReady) return;
 
     const timer = setInterval(() => {
       onTimeDecrement();
-    }, 1000);
+    }, 1500);
 
     return () => clearInterval(timer);
-  }, [gameData.isGameActive, onTimeDecrement]);
+  }, [gameData.isGameActive, gameReady, onTimeDecrement]);
 
-  // jumpAttemptFnRef is populated by GameUI via onJumpAttemptReady and will be invoked elsewhere
+  // Reset game ready state when game becomes inactive
+  useEffect(() => {
+    if (!gameData.isGameActive) {
+      setGameReady(false);
+    }
+  }, [gameData.isGameActive]);
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b to-green-300 flex flex-col items-center justify-center p-4 relative">
@@ -56,9 +63,9 @@ export const Playing = ({
         onJumpFailed={(reason) => {
           let msg = 'Miss';
           if (reason === 'good') {
-            msg = 'Good!';
+            msg = 'KEEP GOING!';
           } else if (reason === 'poor') {
-            msg = 'Keep Going!';
+            msg = 'OOPS! TRY AGAIN!';
           }
           setFeedback(msg);
           // Reset consecutive perfect streak on failed attempt
@@ -69,10 +76,7 @@ export const Playing = ({
         }}
         onLevelComplete={onLevelComplete}
         onGameOver={onGameOver}
-        onJumpAttemptReady={(fn) => {
-          jumpAttemptFnRef.current = fn;
-        }}
-        resetConsecutivePerfect={resetConsecutivePerfect}
+        onReadyToPlay={setGameReady}
         setGameState={setGameState}
       />
 
@@ -81,7 +85,9 @@ export const Playing = ({
       {feedback && (
         <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50">
           <div className={`text-6xl font-black drop-shadow-2xl animate-bounce ${
-            feedback === 'Cleared!' ? 'text-green-400' : 'text-red-400'
+            feedback === 'Perfect!' ? 'text-green-400' : 
+            feedback === 'KEEP GOING!' ? 'text-yellow-400' : 
+            'text-red-400'
           }`} style={{
             textShadow: '4px 4px 0px rgba(0,0,0,0.3)',
             WebkitTextStroke: '2px rgba(0,0,0,0.2)'
