@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import { AnimatedBackground } from './AnimatedBackground';
 import StartPanel from './StartPanel';
 import { LevelSelect } from './LevelSelect';
+import { EmailLoginModal } from './EmailLoginModal';
+import { getStoredEmail, storeEmail, clearStoredEmail, setupEmailCleanup } from '../utils/emailStorage';
 
 // Use public directory paths for deployment
 const tempGif = '/temp.gif';
@@ -11,13 +13,16 @@ interface MenuProps {
   onStartGame: (selectedLevel?: number) => void;
   onViewLeaderboard: () => void;
   unlockedLevels?: number;
+  onEmailSet?: (email: string) => void;
 }
 
-export const Menu = ({ onStartGame, onViewLeaderboard, unlockedLevels = 1 }: MenuProps) => {
+export const Menu = ({ onStartGame, onViewLeaderboard, unlockedLevels = 1, onEmailSet }: MenuProps) => {
   const [gifState, setGifState] = useState<'start' | 'centered' | 'exiting'>('start');
   const [showUI, setShowUI] = useState(false);
   const [currentGif, setCurrentGif] = useState<string>(tempGif);
   const [showLevelSelect, setShowLevelSelect] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const timers = useRef<number[]>([]);
   const fencesRef = useRef<{ x: number; y: number; width: number; height: number }[]>([]);
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -25,6 +30,16 @@ export const Menu = ({ onStartGame, onViewLeaderboard, unlockedLevels = 1 }: Men
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
+    // Setup email cleanup on browser close
+    const cleanup = setupEmailCleanup();
+    
+    // Check if user has stored email
+    const storedEmail = getStoredEmail();
+    if (storedEmail) {
+      setUserEmail(storedEmail);
+    }
+    // Don't automatically show email modal - user must click Sign In
+
     // Show UI immediately for better LCP, animate gif after
     setShowUI(true);
     
@@ -32,6 +47,7 @@ export const Menu = ({ onStartGame, onViewLeaderboard, unlockedLevels = 1 }: Men
     timers.current.push(window.setTimeout(() => setGifState('centered'), 100));
 
     return () => {
+      cleanup();
       timers.current.forEach((id) => clearTimeout(id));
       timers.current = [];
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -119,6 +135,13 @@ export const Menu = ({ onStartGame, onViewLeaderboard, unlockedLevels = 1 }: Men
   }, []);
 
   const handleStartClick = () => {
+    // Check if user is logged in before starting game
+    if (!userEmail) {
+      // Show email modal if not logged in
+      setShowEmailModal(true);
+      return;
+    }
+    
     // hide the start panel and show level select
     setShowUI(false);
     setShowLevelSelect(true);
@@ -139,6 +162,26 @@ export const Menu = ({ onStartGame, onViewLeaderboard, unlockedLevels = 1 }: Men
     setShowUI(true);
   };
 
+  const handleEmailSubmit = (email: string) => {
+    storeEmail(email);
+    setUserEmail(email);
+    setShowEmailModal(false);
+    onEmailSet?.(email);
+  };
+
+  const handleEmailModalClose = () => {
+    setShowEmailModal(false);
+  };
+
+  const handleLogout = () => {
+    clearStoredEmail();
+    setUserEmail(null);
+  };
+
+  const handleSignInClick = () => {
+    setShowEmailModal(true);
+  };
+
   // compute gif positioning styles based on state
   const gifStyle: React.CSSProperties = {
     position: 'absolute',
@@ -156,12 +199,55 @@ export const Menu = ({ onStartGame, onViewLeaderboard, unlockedLevels = 1 }: Men
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
       <AnimatedBackground onFenceRect={(fences) => { fencesRef.current = fences }} />
 
+      {/* Login Status Display / Sign In Button */}
+      <div className="fixed top-4 right-4 z-30 bg-white bg-opacity-90 rounded-lg px-4 py-2 shadow-lg">
+        {userEmail ? (
+          // Logged in state - show email and logout button
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-sm font-medium text-gray-700">
+                {userEmail}
+              </span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="text-xs text-gray-500 hover:text-red-600 transition-colors px-2 py-1 rounded hover:bg-red-50"
+              title="Logout"
+            >
+              Logout
+            </button>
+          </div>
+        ) : (
+          // Not logged in state - show Sign In button
+          <button
+            onClick={handleSignInClick}
+            className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors px-3 py-1 rounded hover:bg-blue-50"
+            title="Sign In"
+          >
+            Sign In
+          </button>
+        )}
+      </div>
+
       {/* animated gif rider */}
       <img ref={imgRef} src={currentGif} alt="rider" style={gifStyle} />
 
       <div className="relative z-10 text-center w-full">
-        <StartPanel showUI={showUI} onStart={handleStartClick} onViewLeaderboard={onViewLeaderboard} />
+        <StartPanel 
+          showUI={showUI} 
+          onStart={handleStartClick} 
+          onViewLeaderboard={onViewLeaderboard}
+          isLoggedIn={!!userEmail}
+        />
       </div>
+
+      {/* Email Login Modal */}
+      <EmailLoginModal
+        isOpen={showEmailModal}
+        onClose={handleEmailModalClose}
+        onEmailSubmit={handleEmailSubmit}
+      />
 
       {/* Level Select Modal */}
       {showLevelSelect && (

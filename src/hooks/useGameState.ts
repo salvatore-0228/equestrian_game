@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { GameState, GameData, Level } from "../types/game";
 import { supabase } from "../lib/supabase";
 import { getPlayerProgress, savePlayerProgress, unlockLevel } from "../utils/localStorage";
+import { getStoredEmail } from "../utils/emailStorage";
 
 const INITIAL_TIME = 60;
 const MULTIPLIER_INCREMENT = 0.1; // 10% per consecutive perfect
@@ -59,9 +60,17 @@ export const useGameState = () => {
       let player;
       
       try {
+        // Get stored email for player association
+        const userEmail = getStoredEmail();
+        
         const { data, error } = await supabase
           .from("players")
-          .insert({ name: playerName, avatar_id: avatarId, horse_id: horseId })
+          .insert({ 
+            name: playerName, 
+            avatar_id: avatarId, 
+            horse_id: horseId,
+            email: userEmail // Include email if available
+          })
           .select()
           .maybeSingle();
 
@@ -73,7 +82,11 @@ export const useGameState = () => {
             console.log("Attempting fallback player creation without horse_id");
             const { data: fallbackData, error: fallbackError } = await supabase
               .from("players")
-              .insert({ name: playerName, avatar_id: avatarId })
+              .insert({ 
+                name: playerName, 
+                avatar_id: avatarId,
+                email: userEmail // Include email in fallback as well
+              })
               .select()
               .maybeSingle();
             
@@ -178,12 +191,18 @@ export const useGameState = () => {
     setGameData((prev) => ({ ...prev, isGameActive: false }));
     
     try {
+      // Get stored email for score association
+      const userEmail = getStoredEmail();
+      
       // use supabase or your persistence layer here - read from gd to avoid depending on gameData
       const { error } = await supabase.from("game_scores").insert({
         player_id: gd.playerId,
+        email: userEmail, // Include email if available
         score: gd.totalScore, // Use total cumulative score
         level_reached: gd.highestLevelReached, // Use highest level reached
         jumps_cleared: gd.jumpsCleared,
+        rails_down: gd.railsDown,
+        consecutive_perfect: gd.consecutivePerfect,
         game_duration: INITIAL_TIME - gd.timeRemaining,
       });
       if (error) {

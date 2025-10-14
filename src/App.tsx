@@ -78,6 +78,9 @@ function App() {
           }}
           onViewLeaderboard={() => setGameState('leaderboard')}
           unlockedLevels={gameData.unlockedLevels}
+          onEmailSet={(email) => {
+            console.log('Email set:', email);
+          }}
         />
       )}
 

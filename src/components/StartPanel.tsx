@@ -5,9 +5,10 @@ interface StartPanelProps {
   showUI?: boolean;
   onStart?: () => void;
   onViewLeaderboard?: () => void;
+  isLoggedIn?: boolean;
 }
 
-export const StartPanel: React.FC<StartPanelProps> = ({ showUI = true, onStart, onViewLeaderboard }) => {
+export const StartPanel: React.FC<StartPanelProps> = ({ showUI = true, onStart, onViewLeaderboard, isLoggedIn = false }) => {
   return (
     <>
       <div className="animate-slide-down" style={{ animationDelay: '0.5s', opacity: showUI ? 1 : 0, transition: 'opacity 300ms ease' }}>
@@ -23,23 +24,36 @@ export const StartPanel: React.FC<StartPanelProps> = ({ showUI = true, onStart, 
         </h2>
       </div>
 
-      {/* START button moved to bottom-center */}
-      <div className="fixed left-1/2 transform -translate-x-1/2" style={{ bottom: '6.5rem', opacity: showUI ? 1 : 0, transition: 'opacity 300ms ease' }}>
-        <button
-          onClick={onStart}
-          className="relative group animate-fade-in-up mx-auto block"
-          style={{ animationDelay: '1.8s' }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl blur-xl opacity-75 group-hover:opacity-100 transition-opacity animate-pulse-glow"></div>
-          <div className="relative bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black text-3xl py-6 px-16 rounded-2xl shadow-2xl transform transition-all duration-300 hover:scale-110 hover:shadow-blue-500/50 border-4 border-white overflow-hidden">
-            <div className="absolute inset-0 animate-shimmer"></div>
-            <div className="relative flex items-center justify-center gap-4">
-              <Play className="w-10 h-10 fill-current" />
-              <span>START GAME</span>
+      {/* START button moved to bottom-center - only show if logged in */}
+      {isLoggedIn && (
+        <div className="fixed left-1/2 transform -translate-x-1/2" style={{ bottom: '6.5rem', opacity: showUI ? 1 : 0, transition: 'opacity 300ms ease' }}>
+          <button
+            onClick={onStart}
+            className="relative group animate-fade-in-up mx-auto block"
+            style={{ animationDelay: '1.8s' }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl blur-xl opacity-75 group-hover:opacity-100 transition-opacity animate-pulse-glow"></div>
+            <div className="relative bg-gradient-to-r from-blue-500 to-blue-600 text-white font-black text-3xl py-6 px-16 rounded-2xl shadow-2xl transform transition-all duration-300 hover:scale-110 hover:shadow-blue-500/50 border-4 border-white overflow-hidden">
+              <div className="absolute inset-0 animate-shimmer"></div>
+              <div className="relative flex items-center justify-center gap-4">
+                <Play className="w-10 h-10 fill-current" />
+                <span>START GAME</span>
+              </div>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* Login required message - only show if not logged in */}
+      {!isLoggedIn && (
+        <div className="fixed left-1/2 transform -translate-x-1/2" style={{ bottom: '6.5rem', opacity: showUI ? 1 : 0, transition: 'opacity 300ms ease' }}>
+          <div className="bg-gray-800 bg-opacity-90 text-white font-bold text-xl py-6 px-16 rounded-2xl shadow-2xl border-4 border-gray-600 text-center">
+            <div className="flex items-center justify-center gap-4">
+              <span>Please Sign In to Start Game</span>
             </div>
           </div>
-        </button>
-      </div>
+        </div>
+      )}
 
       {/* Leaderboard moved to bottom-center (below START) */}
       <div className="fixed left-1/2 transform -translate-x-1/2" style={{ bottom: '1.5rem', opacity: showUI ? 1 : 0, transition: 'opacity 300ms ease' }}>

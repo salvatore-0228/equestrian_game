@@ -16,12 +16,14 @@ export interface Player {
   name: string;
   avatar_id: number;
   horse_id: number;
+  email?: string;
   created_at: string;
 }
 
 export interface GameScore {
   id: string;
   player_id: string;
+  email?: string;
   score: number;
   level_reached: number;
   jumps_cleared: number;

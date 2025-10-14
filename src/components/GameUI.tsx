@@ -318,7 +318,7 @@ export const GameUI = ({
 
   // Re-enable controls when rider passes the fence
   useEffect(() => {
-    console.log('distanceToFence', distanceToFence);
+    // console.log('distanceToFence', distanceToFence);
     if (controlsDisabled && distanceToFence < -100) {
       // Rider has passed the fence (distance is negative and significant)
     }
