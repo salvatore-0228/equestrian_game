@@ -10,6 +10,7 @@ import isJumpSuccessful from "../lib/jumpChecker";
 // Use public directory paths for deployment
 const tempGif = "/temp.gif";
 const jumpGif = "/jump.gif";
+const stopGif = "/stop.gif";
 
 interface GameUIProps {
   score: number;
@@ -66,6 +67,13 @@ export const GameUI = ({
   const [controlsDisabled, setControlsDisabled] = useState<boolean>(false);
   const [largeButtonVisible, setLargeButtonVisible] = useState<boolean>(false);
   const timingContainerRef = useRef<HTMLDivElement | null>(null);
+  
+  // Animation state management
+  const [currentGif, setCurrentGif] = useState<string>(tempGif);
+  const [animationSpeed, setAnimationSpeed] = useState<number>(1);
+  const fenceStopTimeoutRef = useRef<number | null>(null);
+  const fenceReverseTimeoutRef = useRef<number | null>(null);
+  const fenceAnimationTriggeredRef = useRef<boolean>(false);
 
   // start countdown whenever the parent activates the game
   useEffect(() => {
@@ -77,6 +85,9 @@ export const GameUI = ({
       // Reset controls when game becomes inactive
       setControlsDisabled(false);
       setReadyToPlay(false);
+      setCurrentGif(tempGif);
+      setAnimationSpeed(1);
+      fenceAnimationTriggeredRef.current = false;
       onReadyToPlay?.(false);
       return;
     }
@@ -277,8 +288,9 @@ export const GameUI = ({
           height: horse.current.height,
         };
 
-        // if(distanceToFence === 100) 
-          riderRef.current.src = jumpGif;
+        // if(distanceToFence === 100)
+          setCurrentGif(jumpGif);
+        
         riderElevatedRef.current = true;
         // nudge rider DOM overlay upwards while showing jump GIF
         try {
@@ -296,7 +308,7 @@ export const GameUI = ({
         } catch (e) {}
         riderJumpTimeoutRef.current = window.setTimeout(() => {
           try {
-            if (riderRef.current) riderRef.current.src = tempGif;
+            if (riderRef.current) setCurrentGif(tempGif);
             riderElevatedRef.current = false;
             try {
               const riderEl = riderRef.current;
@@ -341,6 +353,48 @@ export const GameUI = ({
     }
   }, [distanceToFence, isGameActive]);
 
+  // Handle fence proximity animation sequence
+  useEffect(() => {
+    // Reset animation trigger flag when rider moves away from fence or passes it
+    if (distanceToFence > 50 || distanceToFence < -50 || distanceToFence === Infinity) {
+      fenceAnimationTriggeredRef.current = false;
+    }
+
+    // Check if rider is at fence.x - 10 and current gif is tempgif and animation hasn't been triggered yet
+    if (distanceToFence <= 10 && distanceToFence > 0 && currentGif === tempGif && isGameActive && !fenceAnimationTriggeredRef.current) {
+      // Mark animation as triggered to prevent multiple executions
+      fenceAnimationTriggeredRef.current = true;
+      
+      // Clear any existing timeouts
+      if (fenceStopTimeoutRef.current) {
+        clearTimeout(fenceStopTimeoutRef.current as any);
+        fenceStopTimeoutRef.current = null;
+      }
+      if (fenceReverseTimeoutRef.current) {
+        clearTimeout(fenceReverseTimeoutRef.current as any);
+        fenceReverseTimeoutRef.current = null;
+      }
+
+      // Set animation speed to 0 and change to stopgif
+      setAnimationSpeed(0);
+      setCurrentGif(stopGif);
+      
+      // After 1 second, set animation speed to -1 and change back to tempgif
+      fenceStopTimeoutRef.current = window.setTimeout(() => {
+        setAnimationSpeed(-0.5);
+        setCurrentGif(tempGif);
+        
+        // After additional 2 seconds (total 3 seconds), reset animation speed to 1
+        fenceReverseTimeoutRef.current = window.setTimeout(() => {
+          setAnimationSpeed(1);
+          fenceReverseTimeoutRef.current = null;
+        }, 2000) as unknown as number;
+        
+        fenceStopTimeoutRef.current = null;
+      }, 1000) as unknown as number;
+    }
+  }, [distanceToFence, currentGif, isGameActive]);
+
   // cleanup any leftover timeout when component unmounts
   useEffect(() => {
     return () => {
@@ -348,10 +402,18 @@ export const GameUI = ({
         clearTimeout(riderJumpTimeoutRef.current as any);
         riderJumpTimeoutRef.current = null;
       }
+      if (fenceStopTimeoutRef.current) {
+        clearTimeout(fenceStopTimeoutRef.current as any);
+        fenceStopTimeoutRef.current = null;
+      }
+      if (fenceReverseTimeoutRef.current) {
+        clearTimeout(fenceReverseTimeoutRef.current as any);
+        fenceReverseTimeoutRef.current = null;
+      }
       try {
         // ensure rider image is restored if component unmounts during a jump GIF
         if (riderRef.current) {
-          riderRef.current.src = tempGif;
+          setCurrentGif(tempGif);
         }
         riderElevatedRef.current = false;
         // restore original horse size if present
@@ -527,6 +589,7 @@ export const GameUI = ({
               // swallow errors to avoid breaking render
             }
           }}
+          animationSpeed={animationSpeed}
         />
       </div>
 
@@ -539,7 +602,7 @@ export const GameUI = ({
       {/* Rider HTML overlay */}
       <img
         ref={riderRef}
-        src={tempGif}
+        src={currentGif}
         alt="rider"
         style={{
           position: "absolute",

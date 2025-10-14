@@ -13,15 +13,28 @@ interface Fence {
   id: number;
 }
 
-export const AnimatedBackground = ({ onFenceRect, paused }: { onFenceRect?: (rects: FenceRect[]) => void, paused?: boolean }) => {
+export const AnimatedBackground = ({ 
+  onFenceRect, 
+  paused, 
+  animationSpeed = 1 
+}: { 
+  onFenceRect?: (rects: FenceRect[]) => void, 
+  paused?: boolean,
+  animationSpeed?: number // -1 (left), 0 (stop), 1 (right)
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pausedRef = useRef<boolean>(!!paused);
+  const animationSpeedRef = useRef<number>(animationSpeed);
   const animationFrameRef = useRef<number | null>(null);
 
-  // keep pausedRef in sync without restarting the main animation effect (we want variables to persist)
+  // keep refs in sync without restarting the main animation effect (we want variables to persist)
   useEffect(() => {
     pausedRef.current = !!paused;
   }, [paused]);
+
+  useEffect(() => {
+    animationSpeedRef.current = animationSpeed;
+  }, [animationSpeed]);
 
   useEffect(() => {
     // Small delay to let LCP elements render first
@@ -185,12 +198,13 @@ export const AnimatedBackground = ({ onFenceRect, paused }: { onFenceRect?: (rec
         cloudOffset += 0.5;
         if (cloudOffset > width + 200) cloudOffset = 0;
 
-        // Move grass leftward
-        const scrollSpeed = 2; // pixels per frame
+        // Move grass based on animation speed (-1 left, 0 stop, 1 right)
+        const baseScrollSpeed = 2; // base pixels per frame
+        const scrollSpeed = baseScrollSpeed * animationSpeedRef.current;
         grassOffset += scrollSpeed;
         if (grassOffset > width + 50) grassOffset -= (width + 50);
 
-        // Move all fences leftward at same speed
+        // Move all fences based on animation speed
         if (fenceLoaded) {
           const tileW = Math.max(60, Math.min(140, Math.floor(width / 10)));
           const tileH = Math.floor(
@@ -198,25 +212,40 @@ export const AnimatedBackground = ({ onFenceRect, paused }: { onFenceRect?: (rec
           );
           const y = Math.floor(grassY) - tileH + 2;
 
-          // Move all fences left
+          // Move all fences based on speed direction
           fences.forEach(fence => {
-            fence.x -= scrollSpeed;
+            fence.x -= scrollSpeed; // negative moves left, positive moves right
           });
 
-          // Remove fences that have moved off the left side of the screen
-          fences = fences.filter(fence => fence.x > -tileW);
+          // Handle fence cleanup and generation based on direction
+          if (animationSpeedRef.current >= 0) {
+            // Moving left or stopped - remove fences that moved off left side
+            fences = fences.filter(fence => fence.x > -tileW);
+            
+            // Add new fences on the right when needed
+            const rightmostFence = fences.reduce((rightmost, fence) => 
+              fence.x > rightmost.x ? fence : rightmost, 
+              fences[0] || { x: -Infinity }
+            );
 
-          // Add new fences when needed (when the rightmost fence is getting close to the right edge)
-          const rightmostFence = fences.reduce((rightmost, fence) => 
-            fence.x > rightmost.x ? fence : rightmost, 
-            fences[0] || { x: -Infinity }
-          );
+            if (fences.length < 5 || rightmostFence.x < width + 200) {
+              const newFenceX = rightmostFence.x + getVariableFenceDistance();
+              fences.push(createFence(newFenceX, tileW, tileH, y));
+            }
+          } else {
+            // Moving right - remove fences that moved off right side
+            fences = fences.filter(fence => fence.x < width + tileW);
+            
+            // Add new fences on the left when needed
+            const leftmostFence = fences.reduce((leftmost, fence) => 
+              fence.x < leftmost.x ? fence : leftmost, 
+              fences[0] || { x: Infinity }
+            );
 
-          // If we need more fences (when rightmost is getting close to screen edge)
-          if (fences.length < 5 || rightmostFence.x < width + 200) {
-            // Place new fence at a variable distance from the rightmost fence
-            const newFenceX = rightmostFence.x + getVariableFenceDistance();
-            fences.push(createFence(newFenceX, tileW, tileH, y));
+            if (fences.length < 5 || leftmostFence.x > -200) {
+              const newFenceX = leftmostFence.x - getVariableFenceDistance();
+              fences.push(createFence(newFenceX, tileW, tileH, y));
+            }
           }
         }
       }

@@ -104,7 +104,7 @@ export const Menu = ({ onStartGame, onViewLeaderboard, unlockedLevels = 1, onEma
               const now = performance.now();
               const cooldown = 600; // Increased cooldown to prevent rapid switching
 
-              console.log('distanceToFence', distanceToFence);
+            //   console.log('distanceToFence', distanceToFence);
               // Check if rider is horizontally close to fence and vertically aligned
               if (distanceToFence < horizontalThreshold && 
                   verticalDistance < verticalThreshold && 
