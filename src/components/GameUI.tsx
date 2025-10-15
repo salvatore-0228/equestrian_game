@@ -213,14 +213,14 @@ export const GameUI = ({
           // to full horse width.
           const isJump = riderEl.src && riderEl.src.indexOf('jumping.gif') !== -1;
           const targetWidth = isJump
-            ? Math.round(horse.current.width * 0.9)
+            ? Math.round(horse.current.width * 0.85)
             : Math.round(horse.current.width);
           const targetHeight = isJump
             ? Math.round(horse.current.height * 1.2)
             : Math.round(horse.current.height);
           const leftPos = Math.round(horse.current.x + (horse.current.width - targetWidth) / 2);
           riderEl.style.left = `${leftPos}px`;
-          const jumpOffset = isJump ? 20 : 0; // Additional upward offset for jumping GIF
+          const jumpOffset = isJump ? 20 : 0;
           const topPos = Math.round(horse.current.y) - (riderElevatedRef.current ? ELEVATION_OFFSET : 0) - jumpOffset;
           riderEl.style.top = `${topPos}px`;
           riderEl.style.width = `${targetWidth}px`;
@@ -301,7 +301,7 @@ export const GameUI = ({
           const riderEl = riderRef.current;
           if (riderEl) {
             const reducedWidth = Math.round(horse.current.width * 0.85);
-            const increasedHeight = Math.round(horse.current.height * 1.2);
+            const increasedHeight = Math.round(horse.current.height);
             const widthDiff = horse.current.width - reducedWidth;
             const leftPos = Math.round(horse.current.x + widthDiff / 2);
             const jumpOffset = 20; // Additional upward offset for jumping GIF
