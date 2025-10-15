@@ -8,8 +8,8 @@ import { EndModal } from "./EndModal";
 import isJumpSuccessful from "../lib/jumpChecker";
 
 // Use public directory paths for deployment
-const tempGif = "/temp.gif";
-const jumpGif = "/jump.gif";
+const tempGif = "/running.gif";
+const jumpGif = "/jumping.gif";
 const stopGif = "/stop.gif";
 
 interface GameUIProps {
@@ -67,7 +67,7 @@ export const GameUI = ({
   const [controlsDisabled, setControlsDisabled] = useState<boolean>(false);
   const [largeButtonVisible, setLargeButtonVisible] = useState<boolean>(false);
   const timingContainerRef = useRef<HTMLDivElement | null>(null);
-  
+
   // Animation state management
   const [currentGif, setCurrentGif] = useState<string>(tempGif);
   const [animationSpeed, setAnimationSpeed] = useState<number>(1);
@@ -95,7 +95,7 @@ export const GameUI = ({
     // begin 3-2-1 countdown and pause background during the entire sequence
     setCountdown(3);
     setBgPaused(true);
-    
+
     let value = 3;
     countdownTimerRef.current = window.setInterval(() => {
       value -= 1;
@@ -198,31 +198,35 @@ export const GameUI = ({
       canvas.height = Math.floor(h);
       sizeRef.current.width = canvas.width;
       sizeRef.current.height = canvas.height;
-        // keep the rider on the ground (align with AnimatedBackground grass) and centered
-        try {
-          const grassY = getGrassY(sizeRef.current.height);
-          horse.current.y = grassY - horse.current.height + 2;
-          // Keep horse centered horizontally (adjust if screen width changes significantly)
-          const screenCenter = Math.floor(w / 2);
-          horse.current.x = Math.max(100, Math.min(200, screenCenter - 150)); // Keep between 100-200px from left
+      // keep the rider on the ground (align with AnimatedBackground grass) and centered
+      try {
+        const grassY = getGrassY(sizeRef.current.height);
+        horse.current.y = grassY - horse.current.height + 2;
+        // Keep horse centered horizontally (adjust if screen width changes significantly)
+        const screenCenter = Math.floor(w / 2);
+        horse.current.x = Math.max(100, Math.min(200, screenCenter - 150)); // Keep between 100-200px from left
         // update rider DOM overlay position/size to match horse
         const riderEl = riderRef.current;
         if (riderEl) {
           // if currently showing the jump GIF, reduce width slightly and
           // re-center the image so the pose fits visually; otherwise restore
           // to full horse width.
-          const isJump = riderEl.src && riderEl.src.indexOf('jump.gif') !== -1;
+          const isJump = riderEl.src && riderEl.src.indexOf('jumping.gif') !== -1;
           const targetWidth = isJump
             ? Math.round(horse.current.width * 0.9)
             : Math.round(horse.current.width);
+          const targetHeight = isJump
+            ? Math.round(horse.current.height * 1.2)
+            : Math.round(horse.current.height);
           const leftPos = Math.round(horse.current.x + (horse.current.width - targetWidth) / 2);
           riderEl.style.left = `${leftPos}px`;
-          const topPos = Math.round(horse.current.y) - (riderElevatedRef.current ? ELEVATION_OFFSET : 0);
+          const jumpOffset = isJump ? 20 : 0; // Additional upward offset for jumping GIF
+          const topPos = Math.round(horse.current.y) - (riderElevatedRef.current ? ELEVATION_OFFSET : 0) - jumpOffset;
           riderEl.style.top = `${topPos}px`;
           riderEl.style.width = `${targetWidth}px`;
-          riderEl.style.height = `${Math.round(horse.current.height)}px`;
+          riderEl.style.height = `${targetHeight}px`;
         }
-      } catch (e) {}
+      } catch (e) { }
     };
 
     onResize();
@@ -245,7 +249,7 @@ export const GameUI = ({
 
   const handleJumpAttempt = (outcome: JumpOutcome) => {
     // Disable controls after jump attempt
-    
+
     // Handle timing-based jump attempt
     onJumpOutcome?.(outcome);
 
@@ -289,23 +293,25 @@ export const GameUI = ({
         };
 
         // if(distanceToFence === 100)
-          setCurrentGif(jumpGif);
-        
+        setCurrentGif(jumpGif);
+
         riderElevatedRef.current = true;
         // nudge rider DOM overlay upwards while showing jump GIF
         try {
           const riderEl = riderRef.current;
           if (riderEl) {
-            const reducedWidth = Math.round(horse.current.width * 0.9);
+            const reducedWidth = Math.round(horse.current.width * 0.85);
+            const increasedHeight = Math.round(horse.current.height * 1.2);
             const widthDiff = horse.current.width - reducedWidth;
             const leftPos = Math.round(horse.current.x + widthDiff / 2);
-            const topPos = Math.round(horse.current.y) - ELEVATION_OFFSET;
+            const jumpOffset = 20; // Additional upward offset for jumping GIF
+            const topPos = Math.round(horse.current.y) - ELEVATION_OFFSET - jumpOffset;
             riderEl.style.left = `${leftPos}px`;
             riderEl.style.top = `${topPos}px`;
             riderEl.style.width = `${reducedWidth}px`;
-            riderEl.style.height = `${Math.round(horse.current.height)}px`;
+            riderEl.style.height = `${increasedHeight}px`;
           }
-        } catch (e) {}
+        } catch (e) { }
         riderJumpTimeoutRef.current = window.setTimeout(() => {
           try {
             if (riderRef.current) setCurrentGif(tempGif);
@@ -320,12 +326,12 @@ export const GameUI = ({
                 const topPos = Math.round(horse.current.y);
                 riderEl.style.top = `${topPos}px`;
               }
-            } catch (e) {}
-          } catch (e) {}
+            } catch (e) { }
+          } catch (e) { }
           riderJumpTimeoutRef.current = null;
         }, JUMP_GIF_DURATION) as unknown as number;
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   // Re-enable controls when rider passes the fence
@@ -334,7 +340,7 @@ export const GameUI = ({
     if (controlsDisabled && distanceToFence < -100) {
       // Rider has passed the fence (distance is negative and significant)
     }
-    if(controlsDisabled && distanceToFence < 20) {
+    if (controlsDisabled && distanceToFence < 20) {
       handleJumpAttempt('perfect');
     }
   }, [distanceToFence]);
@@ -364,7 +370,7 @@ export const GameUI = ({
     if (distanceToFence <= 10 && distanceToFence > 0 && currentGif === tempGif && isGameActive && !fenceAnimationTriggeredRef.current) {
       // Mark animation as triggered to prevent multiple executions
       fenceAnimationTriggeredRef.current = true;
-      
+
       // Clear any existing timeouts
       if (fenceStopTimeoutRef.current) {
         clearTimeout(fenceStopTimeoutRef.current as any);
@@ -378,18 +384,18 @@ export const GameUI = ({
       // Set animation speed to 0 and change to stopgif
       setAnimationSpeed(0);
       setCurrentGif(stopGif);
-      
+
       // After 1 second, set animation speed to -1 and change back to tempgif
       fenceStopTimeoutRef.current = window.setTimeout(() => {
         setAnimationSpeed(-0.5);
         setCurrentGif(tempGif);
-        
+
         // After additional 2 seconds (total 3 seconds), reset animation speed to 1
         fenceReverseTimeoutRef.current = window.setTimeout(() => {
           setAnimationSpeed(1);
           fenceReverseTimeoutRef.current = null;
         }, 2000) as unknown as number;
-        
+
         fenceStopTimeoutRef.current = null;
       }, 1000) as unknown as number;
     }
@@ -429,14 +435,14 @@ export const GameUI = ({
             horse.current.x = Math.max(100, Math.min(200, screenCenter - 150));
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     };
   }, []);
 
   return (
     <>
       {/* small top-left level badge */}
-  <EndModal onOpen={() => setBgPaused(true)} onClose={() => setBgPaused(false)} />
+      <EndModal onOpen={() => setBgPaused(true)} onClose={() => setBgPaused(false)} />
       <div className="fixed top-32 left-16 z-50">
         <div
           className="text-white font-bold px-5 py-2 rounded-xl shadow-lg text-4xl tracking-wider"
@@ -462,35 +468,33 @@ export const GameUI = ({
       </div>
       {/* Scoreboard and helper fixed at top-center */}
       <div className="fixed left-1/2 top-4 transform -translate-x-1/2 z-50 w-full max-w-4xl px-4">
-          <div className="flex flex-row justify-center gap-4 mb-4">
-            <div className="flex items-center gap-4">
-              <Timer
-                className={`w-12 h-12 ${
-                  timeRemaining <= 10 ? "text-red-500" : "text-green-500"
+        <div className="flex flex-row justify-center gap-4 mb-4">
+          <div className="flex items-center gap-4">
+            <Timer
+              className={`w-12 h-12 ${timeRemaining <= 10 ? "text-red-500" : "text-green-500"
                 }`}
-              />
-              <div>
-                <div className="text-xs text-gray-500">Time</div>
-                <div
-                  className={`text-2xl font-bold ${
-                    timeRemaining <= 10 ? "text-red-600" : "text-gray-800"
+            />
+            <div>
+              <div className="text-xs text-gray-500">Time</div>
+              <div
+                className={`text-2xl font-bold ${timeRemaining <= 10 ? "text-red-600" : "text-gray-800"
                   }`}
-                >
-                  {timeRemaining}s
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <XCircle className="w-12 h-12 text-red-500" />
-              <div>
-                <div className="text-xs text-gray-500">Rails Down</div>
-                <div className="text-2xl font-bold text-gray-800">
-                  {railsDown}
-                </div>
+              >
+                {timeRemaining}s
               </div>
             </div>
           </div>
+
+          <div className="flex items-center gap-2">
+            <XCircle className="w-12 h-12 text-red-500" />
+            <div>
+              <div className="text-xs text-gray-500">Rails Down</div>
+              <div className="text-2xl font-bold text-gray-800">
+                {railsDown}
+              </div>
+            </div>
+          </div>
+        </div>
         <div className="bg-white rounded-lg shadow-lg p-4 relative z-30">
 
           <div className="space-y-2">
@@ -576,13 +580,13 @@ export const GameUI = ({
               currentJumpObstacle.current.y = rect.y;
               currentJumpObstacle.current.width = rect.width;
               currentJumpObstacle.current.height = rect.height;
-              
+
               // Calculate distance from rider to fence
               const horseX = horse.current.x;
               const fenceX = rect.x + rect.width / 2; // Fence center
               const distance = fenceX - horseX;
               setDistanceToFence(distance);
-              
+
               // keep cleared flag if already true
               // (do not reset cleared here to preserve game state)
             } catch (e) {

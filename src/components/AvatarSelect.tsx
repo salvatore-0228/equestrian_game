@@ -5,7 +5,7 @@ import brownGirl from "../assets/characters/brown.jpg";
 import asianGirl from "../assets/characters/asian.jpg";
 import boy from "../assets/characters/boy.jpg";
 // Use public directory path for deployment
-const tempGif = '/temp.gif';
+const tempGif = '/running.gif';
 import horse1 from "../assets/horses/horse1.png";
 import horse2 from "../assets/horses/horse2.png";
 import horse3 from "../assets/horses/horse3.png";
